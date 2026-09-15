@@ -291,8 +291,7 @@
         </div>
     </main>
 
-    <script>
-       <script>
+        <script>
         const LOGIN_LOGO_BASE64 = ""; 
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -308,17 +307,17 @@
         async function handleLogin(event) {
             event.preventDefault();
             
-            const usernameInput = document.getElementById('username').value;
+            const usernameInput = document.getElementById('username').value.trim();
             const passwordInput = document.getElementById('password').value;
             const loginBtn = document.getElementById('login-btn');
             
-            // Change button text to show loading state safely
+            // Set loading state
             loginBtn.disabled = true;
             loginBtn.innerHTML = `<span>Authenticating...</span>`;
 
             try {
-                // Replace this URL with your actual backend login endpoint (e.g., '/api/login' or 'login.php')
-                const response = await fetch('/api/login', {
+                // Pointing to the correct Express endpoint (/api/auth/login)
+                const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -331,23 +330,25 @@
 
                 const data = await response.json();
 
-                if (response.ok) {
-                    showModal('Success', 'Login successful! Redirecting...', 'success');
-                    // Redirect after a short delay
+                // Check data.success from the Node.js server response
+                if (data && data.success) {
+                    // Store user context in session for the dashboard
+                    sessionStorage.setItem('userContext', JSON.stringify(data));
+
+                    showModal('Success', 'Login successful! Redirecting to Dashboard...', 'success');
+                    
+                    // Redirect to dashboard page
                     setTimeout(() => {
-                        window.location.href = '/dashboard.html'; 
-                    }, 1500);
+                        window.location.href = '/dashboard'; 
+                    }, 1200);
                 } else {
                     showModal('Access Denied', data.message || 'Invalid username or password.', 'error');
                     resetButton(loginBtn);
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                // Fallback simulation if you don't have a backend running yet
-                setTimeout(() => {
-                    showModal('Success', 'Authentication simulated successfully!', 'success');
-                    resetButton(loginBtn);
-                }, 1000);
+                showModal('Server Error', 'Unable to connect to authentication server.', 'error');
+                resetButton(loginBtn);
             }
         }
 
@@ -358,8 +359,22 @@
 
         function showModal(title, message, type) {
             const modal = document.getElementById('custom-modal');
+            const iconContainer = document.getElementById('modal-icon-container');
+            const icon = document.getElementById('modal-icon');
+            const btn = document.getElementById('modal-btn');
+            
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-message').innerText = message;
+            
+            if (type === 'success') {
+                iconContainer.className = "w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto mb-5 bg-emerald-100 text-emerald-600";
+                icon.className = "fa-solid fa-circle-check";
+                btn.className = "w-full py-3 px-4 text-white text-sm font-bold rounded-xl shadow-md transition-all bg-emerald-600 hover:bg-emerald-700";
+            } else {
+                iconContainer.className = "w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto mb-5 bg-rose-100 text-rose-600";
+                icon.className = "fa-solid fa-triangle-exclamation";
+                btn.className = "w-full py-3 px-4 text-white text-sm font-bold rounded-xl shadow-md transition-all bg-rose-600 hover:bg-rose-700";
+            }
             modal.classList.remove('hidden');
         }
 
