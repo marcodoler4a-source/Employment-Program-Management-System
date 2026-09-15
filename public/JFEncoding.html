@@ -1715,7 +1715,29 @@
     }
 
     function goToPage(pageName) {
-      window.location.href = '/' + pageName.toLowerCase();
+      if (!pageName) return;
+      const clean = pageName.trim();
+      const lower = clean.toLowerCase();
+      
+      const currentUser = sessionStorage.getItem('username') || localStorage.getItem('username') || '';
+      const uParam = currentUser ? `username=${encodeURIComponent(currentUser)}` : '';
+
+      // 1. Local file:// protocol execution
+      if (window.location.protocol === 'file:') {
+        const fileTarget = clean.endsWith('.html') ? clean : `${clean}.html`;
+        window.location.href = fileTarget + (uParam ? `?${uParam}` : '');
+        return;
+      }
+
+      // 2. Query param based routing (e.g. index.html?page=NationalReports or ?page=nationalreports)
+      if (window.location.search.includes('page=')) {
+        window.location.href = `?page=${lower}` + (uParam ? `&${uParam}` : '');
+        return;
+      }
+
+      // 3. Static server / GitHub Pages / Express routing (target .html directly if needed)
+      const targetPath = clean.endsWith('.html') ? clean : `${clean}.html`;
+      window.location.href = `/${targetPath}` + (uParam ? `?${uParam}` : '');
     }
 
     function handleSprsClick(event) {
