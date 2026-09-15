@@ -5,7 +5,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios'); // For optional Google Sheets Sync
+const axios = require('axios');
 
 const {
   getCurrentUserContext,
@@ -20,17 +20,13 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Set your optional deployed Google Apps Script Web App URL here
+// Set your deployed Google Apps Script Web App URL here if using Google Sheets
 const GOOGLE_SHEETS_WEBHOOK_URL = process.env.GOOGLE_SHEETS_WEBHOOK_URL || '';
 
-// Body parser middleware for handling form and JSON submissions
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files from 'public' folder (CSS, JS, images, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Page configuration matching GAS doGet pageConfig mapping
 const PAGE_CONFIG = {
   'login':           { files: ['login', 'Login'], title: 'DOLE Employment Program | CALABARZON' },
   'dashboard':       { files: ['Dashboard', 'dashboard', 'GIP', 'gip', 'Index'], title: 'Dashboard | CALABARZON' },
@@ -100,19 +96,16 @@ function handleDoGet(req, res) {
   const output = tryRenderHtmlOutput(target.files, target.title);
   if (output) return res.send(output);
 
-  // Final fallback
   const loginOutput = tryRenderHtmlOutput(['login', 'Login', 'GIP', 'gip', 'Index'], 'Job Fair Report System | CALABARZON');
   if (loginOutput) return res.send(loginOutput);
 
   return res.status(404).send(
-    `<h3 style="font-family:Arial;padding:40px;">Page Not Found: ${rawPage}<br><br>Available pages: login, dashboard, gip, mer, nationalreports</h3>`
+    `<h3 style="font-family:Arial;padding:40px;">Page Not Found: ${rawPage}</h3>`
   );
 }
 
-// Route mapping for GET ?page=...
 app.get('/', handleDoGet);
 
-// Route mapping for clean URLs like /login, /dashboard
 app.get('/:pageName', (req, res, next) => {
   const pageName = req.params.pageName.toLowerCase();
   if (PAGE_CONFIG[pageName]) {
@@ -122,33 +115,28 @@ app.get('/:pageName', (req, res, next) => {
   next();
 });
 
-// Helper route for raw HTML retrieval
 app.get('/html/:page', (req, res) => {
   try {
-    const htmlContent = getPageHtml(req.params.page);
-    res.send(htmlContent);
+    res.send(getPageHtml(req.params.page));
   } catch (err) {
     res.status(404).json({ error: err.message });
   }
 });
 
 // ==========================================
-// API ENDPOINTS (AUTHENTICATION & USER CONTEXT)
+// API ENDPOINTS (AUTHENTICATION)
 // ==========================================
 
 app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  res.json(authenticateUser(username, password));
+  res.json(authenticateUser(req.body.username, req.body.password));
 });
 
 app.post('/api/auth/change-password', (req, res) => {
-  const { username, currentPassword, newPassword } = req.body;
-  res.json(changeUserPassword(username, currentPassword, newPassword));
+  res.json(changeUserPassword(req.body.username, req.body.currentPassword, req.body.newPassword));
 });
 
 app.post('/api/auth/reset-password', (req, res) => {
-  const { username } = req.body;
-  res.json(resetUserPassword(username));
+  res.json(resetUserPassword(req.body.username));
 });
 
 app.get('/api/user/context', (req, res) => {
@@ -159,41 +147,32 @@ app.get('/api/user/authorized', (req, res) => {
   res.json({ email: req.query.email, authorized: isUserAuthorized(req.query.email) });
 });
 
-app.get('/api/script-url', (req, res) => {
-  const fullUrl = `${req.protocol}://${req.get('host')}`;
-  res.json({ url: fullUrl });
-});
-
 // ==========================================
-// JOB FAIR ENCODING & RECORDS BACKEND MODULE
+// JOB FAIR DATABASE MODULE
 // ==========================================
 
 const JF_DB_PATH = path.join(__dirname, 'jf_records.json');
 
-// Helper: Read persistent records JSON
 function getJfRecords() {
   try {
     if (fs.existsSync(JF_DB_PATH)) {
       return JSON.parse(fs.readFileSync(JF_DB_PATH, 'utf8'));
     }
   } catch (err) {
-    console.error("Error reading JF database file:", err.message);
+    console.error("Error reading JF database:", err.message);
   }
   return [];
 }
 
-// Helper: Save persistent records JSON
 function saveJfRecords(records) {
   try {
     fs.writeFileSync(JF_DB_PATH, JSON.stringify(records, null, 2), 'utf8');
   } catch (err) {
-    console.error("Error writing JF database file:", err.message);
+    console.error("Error writing JF database:", err.message);
   }
 }
 
-// API: Get All Records (Tab 3 & Tab 6)
 app.get('/api/jf/records', async (req, res) => {
-  // If Google Sheets webhook is configured, attempt sync first
   if (GOOGLE_SHEETS_WEBHOOK_URL) {
     try {
       const response = await axios.get(GOOGLE_SHEETS_WEBHOOK_URL);
@@ -201,92 +180,109 @@ app.get('/api/jf/records', async (req, res) => {
         return res.json({ status: 'success', records: response.data });
       }
     } catch (err) {
-      console.warn("Google Sheets fetch failed, falling back to local JSON database:", err.message);
+      console.warn("Sheets fetch error, using JSON file:", err.message);
     }
   }
-  const records = getJfRecords();
-  res.json({ status: 'success', records });
+  res.json({ status: 'success', records: getJfRecords() });
 });
 
-// API: Get JF Summary Data (Tab 2)
 app.get('/api/jf/summary', (req, res) => {
-  const records = getJfRecords();
-  res.json({ status: 'success', records });
+  res.json({ status: 'success', records: getJfRecords() });
 });
 
-// API: Save New Encoded Record (Tab 1)
 app.post('/api/jf/encode', async (req, res) => {
   try {
     const formData = req.body;
     const records = getJfRecords();
-
     const now = new Date();
+
+    const dateFiled = formData.dateFiled || formData['DATE FILED'] || '';
+    const dateIssued = formData.dateIssued || formData['DATE ISSUED'] || '';
+    const dateOfJobFair = formData.dateOfJobFair || formData['DATE OF JOB FAIR'] || '';
+    const dateOfEncoding = formData.dateOfEncoding || formData['DATE OF ENCODING'] || now.toISOString().split('T')[0];
+
+    const turnaroundTime = formData.turnaroundTime || formData['TURNAROUND TIME'] || '0 DAY(S)';
+    const daysFiledBeforeJF = formData.daysFiledBeforeJF || formData['DAYS FILED BEFORE JF'] || '0 DAY(S)';
+    const daysReported = formData.daysReported || formData['DAYS REPORTED'] || '0 DAY(S)';
+
     const newRecord = {
-      rowIndex: Date.now(), // Unique ID / Row Index
+      rowIndex: Date.now(),
       timestamp: now.toISOString().replace('T', ' ').substring(0, 19),
       year: now.getFullYear().toString(),
-      month: formData.reportingPeriod || "JANUARY",
-      province: formData.fieldOffice || "BATANGAS FIELD OFFICE",
-      reportingPeriod: formData.reportingPeriod || "",
-      fieldOffice: formData.fieldOffice || "",
-      sponsor: formData.sponsor || "",
-      contactNumber: formData.contactNumber || "",
-      dateOfJobFair: formData.dateOfJobFair || "",
-      dateFiled: formData.dateFiled || "",
-      dateIssued: formData.dateIssued || "",
-      dateOfEncoding: formData.dateOfEncoding || now.toISOString().split('T')[0],
-      turnaroundTime: formData.turnaroundTime || "0 DAY(S)",
-      daysFiledBeforeJF: formData.daysFiledBeforeJF || "0 DAY(S)",
-      daysReported: formData.daysReported || "0 DAY(S)",
-      jobFairVenue: formData.jobFairVenue || "",
-      documentApplied: formData.documentApplied || "",
-      actionTaken: formData.actionTaken || "APPROVED",
-      disapprovedReason: formData.disapprovedReason || "N/A",
-      documentNumber: formData.documentNumber || ""
+      month: formData.reportingPeriod || formData['REPORTING PERIOD'] || "JANUARY",
+      province: formData.fieldOffice || formData['FIELD OFFICE'] || "BATANGAS FIELD OFFICE",
+      reportingPeriod: formData.reportingPeriod || formData['REPORTING PERIOD'] || "",
+      fieldOffice: formData.fieldOffice || formData['FIELD OFFICE'] || "",
+      sponsor: formData.sponsor || formData['SPONSOR / ORGANIZER'] || "",
+      contactNumber: formData.contactNumber || formData['CONTACT NUMBER'] || "",
+      dateOfJobFair,
+      dateFiled,
+      dateIssued,
+      dateOfEncoding,
+      turnaroundTime,
+      daysFiledBeforeJF,
+      daysReported,
+      jobFairVenue: formData.jobFairVenue || formData['JOB FAIR VENUE'] || "",
+      documentApplied: formData.documentApplied || formData['JOB FAIR DOCUMENT APPLIED'] || "",
+      actionTaken: formData.actionTaken || formData['ACTION TAKEN'] || "APPROVED",
+      disapprovedReason: formData.disapprovedReason || formData['REASON IF DISAPPROVED'] || "N/A",
+      documentNumber: formData.documentNumber || formData['PERMIT / CLEARANCE NO.'] || "",
+
+      // Matching uppercase header keys for Google Sheets
+      "REPORTING PERIOD": formData.reportingPeriod || "",
+      "FIELD OFFICE": formData.fieldOffice || "",
+      "SPONSOR / ORGANIZER": formData.sponsor || "",
+      "CONTACT NUMBER": formData.contactNumber || "",
+      "DATE OF JOB FAIR": dateOfJobFair,
+      "DATE FILED": dateFiled,
+      "DATE ISSUED": dateIssued,
+      "DATE OF ENCODING": dateOfEncoding,
+      "TURNAROUND TIME": turnaroundTime,
+      "DAYS FILED BEFORE JF": daysFiledBeforeJF,
+      "NO. DAYS FILED BEFORE JF": daysFiledBeforeJF,
+      "No. Days Filed before JF": daysFiledBeforeJF,
+      "DAYS REPORTED": daysReported,
+      "NO. DAYS REPORTED": daysReported,
+      "No. days of days reported": daysReported,
+      "JOB FAIR VENUE": formData.jobFairVenue || "",
+      "JOB FAIR DOCUMENT APPLIED": formData.documentApplied || "",
+      "ACTION TAKEN": formData.actionTaken || "APPROVED",
+      "REASON IF DISAPPROVED": formData.disapprovedReason || "N/A",
+      "PERMIT / CLEARANCE NO.": formData.documentNumber || ""
     };
 
     records.push(newRecord);
     saveJfRecords(records);
 
-    // Sync to Google Sheets if configured
     if (GOOGLE_SHEETS_WEBHOOK_URL) {
       try {
         await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, { action: 'create', data: newRecord });
       } catch (sheetErr) {
-        console.warn("Failed to sync new record to Google Sheets:", sheetErr.message);
+        console.warn("Sheets sync warning:", sheetErr.message);
       }
     }
 
-    res.json({
-      status: 'success',
-      success: true,
-      message: "Job Fair Record saved successfully!"
-    });
+    res.json({ status: 'success', success: true, message: "Job Fair Record saved successfully!" });
   } catch (err) {
     res.status(500).json({ status: 'error', success: false, message: err.message });
   }
 });
 
-// API: Update Record
 app.post('/api/jf/update-record', async (req, res) => {
   try {
     const { rowIndex, data } = req.body;
     let records = getJfRecords();
-
     const targetIndex = rowIndex || (data && data.rowIndex);
     const idx = records.findIndex(r => r.rowIndex == targetIndex);
 
     if (idx !== -1) {
-      const updatedFields = data || req.body;
-      records[idx] = { ...records[idx], ...updatedFields };
+      records[idx] = { ...records[idx], ...(data || req.body) };
       saveJfRecords(records);
 
       if (GOOGLE_SHEETS_WEBHOOK_URL) {
         try {
           await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, { action: 'update', rowIndex: targetIndex, data: records[idx] });
-        } catch (sheetErr) {
-          console.warn("Failed to sync update to Google Sheets:", sheetErr.message);
-        }
+        } catch (sheetErr) {}
       }
 
       return res.json({ status: 'success', success: true, message: "Record updated successfully!" });
@@ -298,7 +294,6 @@ app.post('/api/jf/update-record', async (req, res) => {
   }
 });
 
-// API: Delete Record
 app.post('/api/jf/delete-record', async (req, res) => {
   try {
     const { rowIndex } = req.body;
@@ -313,9 +308,7 @@ app.post('/api/jf/delete-record', async (req, res) => {
       if (GOOGLE_SHEETS_WEBHOOK_URL) {
         try {
           await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, { action: 'delete', rowIndex });
-        } catch (sheetErr) {
-          console.warn("Failed to sync deletion to Google Sheets:", sheetErr.message);
-        }
+        } catch (sheetErr) {}
       }
 
       return res.json({ status: 'success', success: true, message: "Record deleted successfully!" });
@@ -327,58 +320,8 @@ app.post('/api/jf/delete-record', async (req, res) => {
   }
 });
 
-// API: Get KFS Timeline Breakdown (Tab 4)
-app.get('/api/jf/tab4-breakdown', (req, res) => {
-  try {
-    const records = getJfRecords();
-    const clearanceRecords = [];
-    const permitRecords = [];
-
-    records.forEach(r => {
-      const doc = (r.documentApplied || "").toUpperCase();
-      let days = null;
-
-      if (r.dateFiled && r.dateIssued) {
-        const d1 = new Date(r.dateFiled);
-        const d2 = new Date(r.dateIssued);
-        if (!isNaN(d1) && !isNaN(d2)) {
-          days = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
-        }
-      }
-
-      const item = {
-        month: r.reportingPeriod || r.month || "JANUARY",
-        year: r.year || "2026",
-        province: r.fieldOffice || r.province || "BATANGAS",
-        actionTaken: r.actionTaken || "APPROVED",
-        clearanceNo: r.documentNumber || "",
-        documentNumber: r.documentNumber || "",
-        turnaroundTime: r.turnaroundTime || "",
-        daysFiledBeforeJF: r.daysFiledBeforeJF || "",
-        daysReported: r.daysReported || "",
-        days: days
-      };
-
-      if (doc.includes("PERMIT")) {
-        permitRecords.push(item);
-      } else {
-        clearanceRecords.push(item);
-      }
-    });
-
-    res.json({
-      status: 'success',
-      success: true,
-      clearanceRecords,
-      permitRecords
-    });
-  } catch (err) {
-    res.status(500).json({ status: 'error', success: false, message: err.message });
-  }
-});
-
 // ==========================================
-// START SERVER (Placed at the very end!)
+// START SERVER AT THE VERY END
 // ==========================================
 app.listen(PORT, () => {
   console.log(`DOLE CALABARZON Express Server listening on port ${PORT}`);
