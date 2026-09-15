@@ -1,5 +1,5 @@
 // ==========================================
-// WEB APP ROUTING & ENTRY POINTS (Express)
+// DOLE CALABARZON EXPRESS SERVER (server.js)
 // ==========================================
 
 const express = require('express');
@@ -124,7 +124,7 @@ app.get('/html/:page', (req, res) => {
 });
 
 // ==========================================
-// API ENDPOINTS
+// AUTHENTICATION & USER API ENDPOINTS
 // ==========================================
 
 app.post('/api/auth/login', (req, res) => {
@@ -178,7 +178,7 @@ function saveJfRecords(records) {
   }
 }
 
-// API: Get All Records (Tab 3 & Tab 6)
+// API: Get All Records (Tab 3, Tab 2, Tab 6)
 app.get('/api/jf/records', (req, res) => {
   const records = getJfRecords();
   res.json({ success: true, records: records });
@@ -203,7 +203,7 @@ app.post('/api/jf/encode', (req, res) => {
 
     const now = new Date();
     const newRecord = {
-      rowIndex: Date.now(), // Unique ID / Row Index
+      rowIndex: Date.now(), // Unique Record ID
       timestamp: now.toISOString().replace('T', ' ').substring(0, 19),
       year: now.getFullYear().toString(),
       month: formData.reportingPeriod || "JANUARY",
@@ -229,18 +229,28 @@ app.post('/api/jf/encode', (req, res) => {
       entitiesLocal: formData.entitiesLocal || "0",
       vacanciesOverseas: formData.vacanciesOverseas || "0",
       vacanciesLocal: formData.vacanciesLocal || "0",
-      proofReceivedUrl: "",
-      proofReleasedUrl: "",
 
-      // Upper-case Header Key Aliases for max compatibility
+      // Upper-case Header Key Aliases for max Google Sheets compatibility
+      "YEAR": now.getFullYear().toString(),
+      "FIELD OFFICE": formData.fieldOffice || "",
+      "REPORTING PERIOD": formData.reportingPeriod || "",
+      "SPONSOR / ORGANIZER": formData.sponsor || "",
+      "CONTACT NUMBER": formData.contactNumber || "",
+      "PERMIT / CLEARANCE NO.": formData.documentNumber || "",
+      "JOB FAIR DOCUMENT APPLIED": formData.documentApplied || "",
+      "JOB FAIR VENUE": formData.jobFairVenue || "",
+      "DATE OF JOB FAIR": formData.dateOfJobFair || "",
+      "DATE FILED": formData.dateFiled || "",
+      "DATE ISSUED": formData.dateIssued || "",
       "DATE OF ENCODING": dateEnc,
       "TURNAROUND TIME": turnTime,
       "DAYS FILED BEFORE JF": daysBefore,
       "NO. DAYS FILED BEFORE JF": daysBefore,
       "DAYS REPORTED": daysRep,
       "NO. DAYS REPORTED": daysRep,
+      "ACTION TAKEN": formData.actionTaken || "APPROVED",
+      "REASON IF DISAPPROVED": formData.disapprovedReason || "N/A",
 
-      // Preserve all payload fields sent by frontend
       ...formData
     };
 
@@ -256,7 +266,7 @@ app.post('/api/jf/encode', (req, res) => {
   }
 });
 
-// API: Update Record (Edit Modal)
+// API: Update Record (Edit Modal - Full 18 Columns Update)
 app.post('/api/jf/update-record', (req, res) => {
   try {
     const {
@@ -267,26 +277,61 @@ app.post('/api/jf/update-record', (req, res) => {
     } = req.body;
 
     let records = getJfRecords();
-    const idx = records.findIndex(r => r.rowIndex == rowIndex);
+    const idx = records.findIndex(r => (r.rowIndex == rowIndex || r._rowIndex == rowIndex));
 
     if (idx !== -1) {
-      if (reportingPeriod !== undefined) records[idx].reportingPeriod = reportingPeriod;
-      if (fieldOffice !== undefined) records[idx].fieldOffice = fieldOffice;
-      if (sponsor !== undefined) records[idx].sponsor = sponsor;
-      if (contactNumber !== undefined) records[idx].contactNumber = contactNumber;
-      if (jobFairVenue !== undefined) records[idx].jobFairVenue = jobFairVenue;
-      if (dateOfJobFair !== undefined) records[idx].dateOfJobFair = dateOfJobFair;
-      if (dateFiled !== undefined) records[idx].dateFiled = dateFiled;
-      if (dateReceived !== undefined) records[idx].dateReceived = dateReceived;
-      if (dateIssued !== undefined) records[idx].dateIssued = dateIssued;
+      if (reportingPeriod !== undefined) {
+        records[idx].reportingPeriod = reportingPeriod;
+        records[idx].month = reportingPeriod;
+        records[idx]["REPORTING PERIOD"] = reportingPeriod;
+      }
+      if (fieldOffice !== undefined) {
+        records[idx].fieldOffice = fieldOffice;
+        records[idx].province = fieldOffice;
+        records[idx]["FIELD OFFICE"] = fieldOffice;
+      }
+      if (sponsor !== undefined) {
+        records[idx].sponsor = sponsor;
+        records[idx]["SPONSOR / ORGANIZER"] = sponsor;
+      }
+      if (contactNumber !== undefined) {
+        records[idx].contactNumber = contactNumber;
+        records[idx]["CONTACT NUMBER"] = contactNumber;
+      }
+      if (jobFairVenue !== undefined) {
+        records[idx].jobFairVenue = jobFairVenue;
+        records[idx]["JOB FAIR VENUE"] = jobFairVenue;
+      }
+      if (dateOfJobFair !== undefined) {
+        records[idx].dateOfJobFair = dateOfJobFair;
+        records[idx]["DATE OF JOB FAIR"] = dateOfJobFair;
+      }
+      if (dateFiled !== undefined) {
+        records[idx].dateFiled = dateFiled;
+        records[idx].dateReceived = dateFiled;
+        records[idx]["DATE FILED"] = dateFiled;
+      }
+      if (dateIssued !== undefined) {
+        records[idx].dateIssued = dateIssued;
+        records[idx]["DATE ISSUED"] = dateIssued;
+      }
 
       if (dateOfEncoding !== undefined) {
         records[idx].dateOfEncoding = dateOfEncoding;
         records[idx]["DATE OF ENCODING"] = dateOfEncoding;
       }
-      if (actionTaken !== undefined) records[idx].actionTaken = actionTaken;
-      if (disapprovedReason !== undefined) records[idx].disapprovedReason = disapprovedReason;
-      if (documentNumber !== undefined) records[idx].documentNumber = documentNumber;
+      if (actionTaken !== undefined) {
+        records[idx].actionTaken = actionTaken;
+        records[idx]["ACTION TAKEN"] = actionTaken;
+      }
+      if (disapprovedReason !== undefined) {
+        records[idx].disapprovedReason = disapprovedReason;
+        records[idx]["REASON IF DISAPPROVED"] = disapprovedReason;
+      }
+      if (documentNumber !== undefined) {
+        records[idx].documentNumber = documentNumber;
+        records[idx]["PERMIT / CLEARANCE NO."] = documentNumber;
+      }
 
       if (turnaroundTime !== undefined) {
         records[idx].turnaroundTime = turnaroundTime;
@@ -320,7 +365,7 @@ app.post('/api/jf/delete-record', (req, res) => {
     let records = getJfRecords();
 
     const initialLength = records.length;
-    records = records.filter(r => r.rowIndex != rowIndex);
+    records = records.filter(r => (r.rowIndex != rowIndex && r._rowIndex != rowIndex));
 
     if (records.length < initialLength) {
       saveJfRecords(records);
@@ -341,7 +386,7 @@ app.get('/api/jf/tab4-breakdown', (req, res) => {
     const permitRecords = [];
 
     records.forEach(r => {
-      const doc = (r.documentApplied || "").toUpperCase();
+      const doc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || "").toUpperCase();
       let days = null;
 
       if (r.dateFiled && r.dateIssued) {
@@ -353,12 +398,12 @@ app.get('/api/jf/tab4-breakdown', (req, res) => {
       }
 
       const item = {
-        month: r.reportingPeriod || r.month || "JANUARY",
-        year: r.year || "2026",
-        province: r.fieldOffice || r.province || "BATANGAS",
-        actionTaken: r.actionTaken || "APPROVED",
-        clearanceNo: r.documentNumber || "",
-        documentNumber: r.documentNumber || "",
+        month: r.reportingPeriod || r.month || r['REPORTING PERIOD'] || "JANUARY",
+        year: r.year || r['YEAR'] || "2026",
+        province: r.fieldOffice || r.province || r['FIELD OFFICE'] || "BATANGAS",
+        actionTaken: r.actionTaken || r['ACTION TAKEN'] || "APPROVED",
+        clearanceNo: r.documentNumber || r['PERMIT / CLEARANCE NO.'] || "",
+        documentNumber: r.documentNumber || r['PERMIT / CLEARANCE NO.'] || "",
         days: days
       };
 
