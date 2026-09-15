@@ -721,6 +721,7 @@
     let tab3DetailedRecords = [];
     let tab4Unlocked = false;
     let tab5Unlocked = false;
+    let screenAlertTimeout = null;
 
     // Standard Holidays List (MM-DD)
     const philippineHolidays = [
@@ -800,15 +801,24 @@
       if (triggerEl) bootstrap.Tab.getOrCreateInstance(triggerEl).show();
     }
 
-    // CENTERED ALERT MESSAGE
+    // CENTERED ALERT MESSAGE WITH 3-SECOND AUTO DISMISS
     function showScreenAlert(message, type) {
       const container = document.getElementById('screenAlertContainer');
       document.getElementById('screenAlertMessage').innerText = message;
       document.getElementById('screenAlertBox').className = `alert alert-${type} alert-dismissible fade show fw-bold text-uppercase shadow-lg text-center`;
       container.style.display = 'block';
+
+      if (screenAlertTimeout) {
+        clearTimeout(screenAlertTimeout);
+      }
+      screenAlertTimeout = setTimeout(hideScreenAlert, 3000);
     }
 
     function hideScreenAlert() {
+      if (screenAlertTimeout) {
+        clearTimeout(screenAlertTimeout);
+        screenAlertTimeout = null;
+      }
       document.getElementById('screenAlertContainer').style.display = 'none';
     }
 
