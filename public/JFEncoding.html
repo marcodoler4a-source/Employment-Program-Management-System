@@ -1339,6 +1339,34 @@
     </div>
   </div>
 
+  <!-- CENTERED SPRS AUTHORIZATION MODAL (SCREEN CENTERED ALERT & AUTH) -->
+  <div class="modal fade" id="sprsAuthModal" tabindex="-1" aria-labelledby="sprsAuthModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-warning text-dark py-2">
+          <h5 class="modal-title fw-bold fs-6" id="sprsAuthModalLabel"><i class="bi bi-shield-lock-fill me-2"></i>SPRS AUTHORIZATION REQUIRED</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center py-4 px-4">
+          <i class="bi bi-shield-lock text-warning display-4 mb-2 d-block"></i>
+          <h5 class="fw-bold text-dark mb-2">SPRS MODULE ACCESS</h5>
+          <p class="text-secondary small mb-3 style-normal" style="font-size: 0.85rem; text-transform: none;">
+            Enter authorized password to access SPRS / BleForms Module:
+          </p>
+          <div class="input-group mb-2">
+            <span class="input-group-text bg-light"><i class="bi bi-key-fill text-warning"></i></span>
+            <input type="password" class="form-control text-center fw-bold" id="sprsPasswordField" placeholder="ENTER PASSWORD" style="letter-spacing: 2px;" onkeyup="if(event.key==='Enter') verifySprsPassword()">
+          </div>
+          <div id="sprsModalError" class="text-danger fw-bold small mt-2" style="display: none;"></div>
+        </div>
+        <div class="modal-footer justify-content-center bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-4 fw-bold" data-bs-dismiss="modal">CANCEL</button>
+          <button type="button" class="btn btn-warning btn-sm fw-bold px-4 text-dark" onclick="verifySprsPassword()">VERIFY & ENTER</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Bootstrap 5 Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -1617,11 +1645,34 @@
     }
 
     function handleSprsClick(event) {
-      if (event) event.preventDefault();
-      const pwd = prompt("ENTER SPRS AUTHORIZATION PASSWORD:");
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      document.getElementById('sprsPasswordField').value = '';
+      document.getElementById('sprsModalError').style.display = 'none';
+      
+      const modalEl = document.getElementById('sprsAuthModal');
+      const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      bsModal.show();
+    }
+
+    function verifySprsPassword() {
+      const pwd = document.getElementById('sprsPasswordField').value;
+      const errorDiv = document.getElementById('sprsModalError');
+
       if (pwd === "dole4a@2026") {
-        goToPage('sprs');
-      } else if (pwd !== null) {
+        const modalEl = document.getElementById('sprsAuthModal');
+        const bsModal = bootstrap.Modal.getInstance(modalEl);
+        if (bsModal) bsModal.hide();
+        
+        showScreenAlert("AUTHORIZATION SUCCESSFUL! REDIRECTING TO SPRS...", "success");
+        setTimeout(() => {
+          goToPage('sprs');
+        }, 500);
+      } else {
+        errorDiv.innerText = "INCORRECT PASSWORD! AUTHORIZATION DENIED.";
+        errorDiv.style.display = "block";
         showScreenAlert("INCORRECT PASSWORD! ACCESS DENIED TO SPRS.", "danger");
       }
     }
@@ -2073,33 +2124,55 @@
       }
     }
 
-    // HELPER: SORT DATA LATEST TO EARLIEST
-    function sortRecordsLatestToEarliest(records) {
-      return [...records].sort((a, b) => {
-        function parseBestDate(r) {
-          const dJf = r.dateOfJobFair || r['DATE OF JOB FAIR'] || r['JOB FAIR DATE'];
-          const dFiled = r.dateFiled || r['DATE FILED'];
-          const dIssued = r.dateIssued || r['DATE ISSUED'];
-          const dEnc = r.dateOfEncoding || r['DATE OF ENCODING'];
+    // HELPER: SORT DATA BY REPORTING YEAR AND MONTH (LATEST YEAR & LATEST MONTH TO EARLIEST)
+    function sortByReportingMonthAndYear(records) {
+      const monthsOrder = [
+        "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+        "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+      ];
 
-          const str = dJf || dFiled || dIssued || dEnc;
-          if (str) {
-            const t = Date.parse(str);
-            if (!isNaN(t)) return t;
+      function getMonthIndex(r) {
+        const rawM = String(r.month || r.reportingPeriod || r['REPORTING PERIOD'] || r['MONTH'] || '').trim().toUpperCase();
+        const idx = monthsOrder.findIndex(m => rawM.includes(m));
+        return idx !== -1 ? idx : -1;
+      }
+
+      function getYearNum(r) {
+        let yStr = r.year || r['YEAR'] || '';
+        if (!yStr) {
+          const dStr = r.dateOfJobFair || r['DATE OF JOB FAIR'] || r.dateFiled || r['DATE FILED'] || '';
+          if (dStr && dStr.length >= 4) {
+            yStr = dStr.substring(0, 4);
           }
-          return 0;
+        }
+        const y = parseInt(yStr, 10);
+        return (!isNaN(y) && y > 1900) ? y : new Date().getFullYear();
+      }
+
+      return [...records].sort((a, b) => {
+        // 1. Sort by Year Descending (Latest Year First: 2026 -> 2025 -> 2024)
+        const yA = getYearNum(a);
+        const yB = getYearNum(b);
+        if (yB !== yA) {
+          return yB - yA;
         }
 
-        const tA = parseBestDate(a);
-        const tB = parseBestDate(b);
-        if (tB !== tA) {
-          return tB - tA;
+        // 2. Sort by Reporting Month Descending (DECEMBER -> JANUARY)
+        const mA = getMonthIndex(a);
+        const mB = getMonthIndex(b);
+        if (mB !== mA) {
+          return mB - mA;
         }
 
+        // 3. Fallback: Sort by Record ID / Timestamp Descending
         const idxA = Number(a._rowIndex || a.rowIndex || 0);
         const idxB = Number(b._rowIndex || b.rowIndex || 0);
         return idxB - idxA;
       });
+    }
+
+    function sortRecordsLatestToEarliest(records) {
+      return sortByReportingMonthAndYear(records);
     }
 
     // API: Fetch Records
