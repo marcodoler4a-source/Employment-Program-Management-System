@@ -150,15 +150,10 @@ app.get('/api/user/authorized', (req, res) => {
   res.json({ email: req.query.email, authorized: isUserAuthorized(req.query.email) });
 });
 
-app.listen(PORT, () => {
-  console.log(`DOLE CALABARZON Express Server listening on port ${PORT}`);
-});
-
 
 // ==========================================
 // JOB FAIR ENCODING & RECORDS BACKEND MODULE
 // ==========================================
-
 
 const JF_DB_PATH = path.join(__dirname, 'jf_records.json');
 
@@ -186,20 +181,25 @@ function saveJfRecords(records) {
 // API: Get All Records (Tab 3 & Tab 6)
 app.get('/api/jf/records', (req, res) => {
   const records = getJfRecords();
-  res.json(records);
+  res.json({ success: true, records: records });
 });
 
 // API: Get JF Summary Data (Tab 2)
 app.get('/api/jf/summary', (req, res) => {
   const records = getJfRecords();
-  res.json(records);
+  res.json({ success: true, records: records });
 });
 
 // API: Save New Encoded Record (Tab 1)
 app.post('/api/jf/encode', (req, res) => {
   try {
-    const formData = req.body;
+    const formData = req.body || {};
     const records = getJfRecords();
+
+    const dateEnc = formData.dateOfEncoding || formData["DATE OF ENCODING"] || formData.date_of_encoding || "";
+    const turnTime = formData.turnaroundTime || formData["TURNAROUND TIME"] || formData.turnaround_time || "";
+    const daysBefore = formData.daysFiledBeforeJF || formData["DAYS FILED BEFORE JF"] || formData["NO. DAYS FILED BEFORE JF"] || formData.days_filed_before_jf || "";
+    const daysRep = formData.daysReported || formData["DAYS REPORTED"] || formData["NO. DAYS REPORTED"] || formData.days_reported || "";
 
     const now = new Date();
     const newRecord = {
@@ -215,18 +215,33 @@ app.post('/api/jf/encode', (req, res) => {
       dateOfJobFair: formData.dateOfJobFair || "",
       dateFiled: formData.dateFiled || "",
       dateReceived: formData.dateFiled || "",
+      dateIssued: formData.dateIssued || "",
+      dateOfEncoding: dateEnc,
+      turnaroundTime: turnTime,
+      daysFiledBeforeJF: daysBefore,
+      daysReported: daysRep,
       jobFairVenue: formData.jobFairVenue || "",
       documentApplied: formData.documentApplied || "",
       actionTaken: formData.actionTaken || "APPROVED",
       disapprovedReason: formData.disapprovedReason || "N/A",
       documentNumber: formData.documentNumber || "",
-      dateIssued: formData.dateIssued || "",
       entitiesOverseas: formData.entitiesOverseas || "0",
       entitiesLocal: formData.entitiesLocal || "0",
       vacanciesOverseas: formData.vacanciesOverseas || "0",
       vacanciesLocal: formData.vacanciesLocal || "0",
       proofReceivedUrl: "",
-      proofReleasedUrl: ""
+      proofReleasedUrl: "",
+
+      // Upper-case Header Key Aliases for max compatibility
+      "DATE OF ENCODING": dateEnc,
+      "TURNAROUND TIME": turnTime,
+      "DAYS FILED BEFORE JF": daysBefore,
+      "NO. DAYS FILED BEFORE JF": daysBefore,
+      "DAYS REPORTED": daysRep,
+      "NO. DAYS REPORTED": daysRep,
+
+      // Preserve all payload fields sent by frontend
+      ...formData
     };
 
     records.push(newRecord);
@@ -244,17 +259,44 @@ app.post('/api/jf/encode', (req, res) => {
 // API: Update Record (Edit Modal)
 app.post('/api/jf/update-record', (req, res) => {
   try {
-    const { rowIndex, sponsor, jobFairVenue, dateOfJobFair, dateFiled, dateReceived, documentNumber } = req.body;
+    const {
+      rowIndex, sponsor, jobFairVenue, dateOfJobFair, dateFiled,
+      dateReceived, dateIssued, dateOfEncoding, turnaroundTime,
+      daysFiledBeforeJF, daysReported, documentNumber, actionTaken, disapprovedReason
+    } = req.body;
     let records = getJfRecords();
 
     const idx = records.findIndex(r => r.rowIndex == rowIndex);
     if (idx !== -1) {
-      if (sponsor) records[idx].sponsor = sponsor;
-      if (jobFairVenue) records[idx].jobFairVenue = jobFairVenue;
-      if (dateOfJobFair) records[idx].dateOfJobFair = dateOfJobFair;
-      if (dateFiled) records[idx].dateFiled = dateFiled;
-      if (dateReceived) records[idx].dateReceived = dateReceived;
-      if (documentNumber) records[idx].documentNumber = documentNumber;
+      if (sponsor !== undefined) records[idx].sponsor = sponsor;
+      if (jobFairVenue !== undefined) records[idx].jobFairVenue = jobFairVenue;
+      if (dateOfJobFair !== undefined) records[idx].dateOfJobFair = dateOfJobFair;
+      if (dateFiled !== undefined) records[idx].dateFiled = dateFiled;
+      if (dateReceived !== undefined) records[idx].dateReceived = dateReceived;
+      if (dateIssued !== undefined) records[idx].dateIssued = dateIssued;
+      
+      if (dateOfEncoding !== undefined) {
+        records[idx].dateOfEncoding = dateOfEncoding;
+        records[idx]["DATE OF ENCODING"] = dateOfEncoding;
+      }
+      if (turnaroundTime !== undefined) {
+        records[idx].turnaroundTime = turnaroundTime;
+        records[idx]["TURNAROUND TIME"] = turnaroundTime;
+      }
+      if (daysFiledBeforeJF !== undefined) {
+        records[idx].daysFiledBeforeJF = daysFiledBeforeJF;
+        records[idx]["DAYS FILED BEFORE JF"] = daysFiledBeforeJF;
+        records[idx]["NO. DAYS FILED BEFORE JF"] = daysFiledBeforeJF;
+      }
+      if (daysReported !== undefined) {
+        records[idx].daysReported = daysReported;
+        records[idx]["DAYS REPORTED"] = daysReported;
+        records[idx]["NO. DAYS REPORTED"] = daysReported;
+      }
+
+      if (documentNumber !== undefined) records[idx].documentNumber = documentNumber;
+      if (actionTaken !== undefined) records[idx].actionTaken = actionTaken;
+      if (disapprovedReason !== undefined) records[idx].disapprovedReason = disapprovedReason;
 
       saveJfRecords(records);
       return res.json({ success: true, message: "Record updated successfully!" });
@@ -298,8 +340,8 @@ app.get('/api/jf/tab4-breakdown', (req, res) => {
       let days = null;
 
       if (r.dateFiled && r.dateIssued) {
-        const d1 = new Date(r.dateFiled);
-        const d2 = new Date(r.dateIssued);
+        const d1 = new Date(r.dateFiled + 'T00:00:00');
+        const d2 = new Date(r.dateIssued + 'T00:00:00');
         if (!isNaN(d1) && !isNaN(d2)) {
           days = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
         }
@@ -330,4 +372,8 @@ app.get('/api/jf/tab4-breakdown', (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`DOLE CALABARZON Express Server listening on port ${PORT}`);
 });
