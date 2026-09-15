@@ -22,6 +22,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// HTTP NO-CACHE HEADERS TO PREVENT BROWSER BACK-BUTTON BCACHE RETRIEVAL AFTER LOGOUT
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '-1');
+  next();
+});
+
 const PAGE_CONFIG = {
   'login':           { files: ['login', 'Login'], title: 'DOLE Employment Program | CALABARZON' },
   'dashboard':       { files: ['Dashboard', 'dashboard', 'GIP', 'gip', 'Index'], title: 'Dashboard | CALABARZON' },
@@ -101,8 +109,59 @@ function tryRenderHtmlOutput(fileNames, title, req = null) {
         </script>`;
       }
 
+      const antiCacheAndAuthGuard = `
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
+        <script>
+          (function() {
+            function checkAuthSessionGuard() {
+              var path = window.location.pathname.toLowerCase();
+              var search = window.location.search.toLowerCase();
+              var isLoginPage = path.includes('login') || search.includes('page=login');
+              var isLoggedOut = sessionStorage.getItem('isLoggedOut') === 'true' || localStorage.getItem('isLoggedOut') === 'true';
+              var keys = ['username', 'userContext', 'currentUser', 'user', 'loggedUser', 'loggedInUser'];
+              var userFound = false;
+
+              for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                var s = sessionStorage.getItem(k);
+                var l = localStorage.getItem(k);
+                if ((s && s.trim() !== '') || (l && l.trim() !== '')) {
+                  userFound = true;
+                  break;
+                }
+              }
+
+              if (!isLoginPage) {
+                if (isLoggedOut || !userFound) {
+                  window.location.replace('/login');
+                  return false;
+                }
+              } else {
+                if (!isLoggedOut && userFound) {
+                  window.location.replace('/dashboard');
+                  return false;
+                }
+              }
+              return true;
+            }
+
+            checkAuthSessionGuard();
+
+            window.addEventListener('pageshow', function(event) {
+              if (event.persisted || (window.performance && (window.performance.navigation.type === 2 || (window.performance.getEntriesByType && window.performance.getEntriesByType('navigation')[0] && window.performance.getEntriesByType('navigation')[0].type === 'back_forward')))) {
+                if (!checkAuthSessionGuard()) return;
+                window.location.reload();
+              } else {
+                checkAuthSessionGuard();
+              }
+            });
+          })();
+        </script>`;
+
       if (content.includes('<head>')) {
-        let metaAndTitle = `<head>`;
+        let metaAndTitle = `<head>${antiCacheAndAuthGuard}`;
         if (injectScript) metaAndTitle += injectScript;
         if (title) metaAndTitle += `<title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1">`;
         content = content.replace('<head>', metaAndTitle);
