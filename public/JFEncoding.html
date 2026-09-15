@@ -617,6 +617,94 @@
     </div>
   </div>
 
+  <!-- EDIT RECORD MODAL -->
+  <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold" id="editModalLabel"><i class="bi bi-pencil-square me-2"></i>EDIT JOB FAIR RECORD</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="editForm" onsubmit="handleEditSubmit(event)">
+          <div class="modal-body">
+            <input type="hidden" id="editRowIndex">
+            
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label">REPORTING PERIOD <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editReportingPeriod" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">FIELD OFFICE <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editFieldOffice" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">SPONSOR / ORGANIZER <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editSponsor" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">CONTACT NUMBER <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editContactNumber" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">PERMIT / CLEARANCE NO. <span>*</span></label>
+                <input type="text" class="form-control text-uppercase fw-bold" id="editDocumentNumber" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">JOB FAIR VENUE <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editJobFairVenue" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DATE OF JOB FAIR <span>*</span></label>
+                <input type="date" class="form-control" id="editDateOfJobFair" required onchange="calculateEditCalculatedFields()" oninput="calculateEditCalculatedFields()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DATE FILED <span>*</span></label>
+                <input type="date" class="form-control" id="editDateFiled" required onchange="calculateEditCalculatedFields()" oninput="calculateEditCalculatedFields()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DATE ISSUED <span>*</span></label>
+                <input type="date" class="form-control" id="editDateIssued" required onchange="calculateEditCalculatedFields()" oninput="calculateEditCalculatedFields()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DATE OF ENCODING <span>*</span></label>
+                <input type="date" class="form-control" id="editDateOfEncoding" required onchange="calculateEditCalculatedFields()" oninput="calculateEditCalculatedFields()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">ACTION TAKEN <span>*</span></label>
+                <select class="form-select text-uppercase" id="editActionTaken" required onchange="toggleEditDisapprovedReason()">
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="DISAPPROVED">DISAPPROVED</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">REASON IF DISAPPROVED</label>
+                <input type="text" class="form-control text-uppercase" id="editDisapprovedReason" oninput="convertToUppercase(this)">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label">TURNAROUND TIME</label>
+                <input type="text" class="form-control bg-light fw-bold text-primary" id="editTurnaroundTime" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DAYS FILED BEFORE JF</label>
+                <input type="text" class="form-control bg-light fw-bold text-success" id="editDaysFiledBeforeJF" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DAYS REPORTED</label>
+                <input type="text" class="form-control bg-light fw-bold text-info" id="editDaysReported" readonly>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
+            <button type="submit" class="btn btn-primary fw-bold" id="editSaveBtn">SAVE CHANGES</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Bootstrap 5 Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -776,14 +864,14 @@
       document.getElementById('disapprovedReason').value = isDisapproved ? "" : "N/A";
     }
 
-    // COMPUTED METRICS LOGIC
+    // COMPUTED METRICS LOGIC (ENCODING FORM)
     function calculateCalculatedFields() {
       const dateFiledVal = document.getElementById('dateFiled').value;
       const dateIssuedVal = document.getElementById('dateIssued').value;
       const dateOfJobFairVal = document.getElementById('dateOfJobFair').value;
       const dateOfEncodingVal = document.getElementById('dateOfEncoding').value;
 
-      // 1. Turnaround Time: Date Filed vs Date Issued less Sundays and Holidays
+      // 1. Turnaround Time
       if (dateFiledVal && dateIssuedVal) {
         const startDate = new Date(dateFiledVal + 'T00:00:00');
         const endDate = new Date(dateIssuedVal + 'T00:00:00');
@@ -793,9 +881,8 @@
           let curDate = new Date(startDate.getTime());
           
           while (curDate <= endDate) {
-            const dayOfWeek = curDate.getDay(); // 0 is Sunday
+            const dayOfWeek = curDate.getDay();
             const mmDd = String(curDate.getMonth() + 1).padStart(2, '0') + '-' + String(curDate.getDate()).padStart(2, '0');
-            
             const isSunday = (dayOfWeek === 0);
             const isHoliday = philippineHolidays.includes(mmDd);
 
@@ -812,7 +899,7 @@
         document.getElementById('turnaroundTime').value = `0 DAY(S)`;
       }
 
-      // 2. No. Days Filed before JF: Job Fair Date minus Date Filed
+      // 2. Days Filed Before JF
       if (dateOfJobFairVal && dateFiledVal) {
         const jfDate = new Date(dateOfJobFairVal + 'T00:00:00');
         const filedDate = new Date(dateFiledVal + 'T00:00:00');
@@ -822,7 +909,7 @@
         document.getElementById('daysFiledBeforeJF').value = `0 DAY(S)`;
       }
 
-      // 3. No. Days Reported: Date of Encoding minus Date Filed
+      // 3. Days Reported
       if (dateOfEncodingVal && dateFiledVal) {
         const encDate = new Date(dateOfEncodingVal + 'T00:00:00');
         const filedDate = new Date(dateFiledVal + 'T00:00:00');
@@ -836,8 +923,6 @@
     // API: Submit New Record (Tab 1)
     async function handleFormSubmit(event) {
       event.preventDefault();
-
-      // Explicitly recalculate before gathering submit payload
       calculateCalculatedFields();
 
       const submitBtn = document.getElementById('submitBtn');
@@ -874,7 +959,6 @@
         disapprovedReason: document.getElementById('disapprovedReason').value,
         documentNumber: fullDocumentNo,
 
-        // Key aliases for backend/Google Sheets column header compatibility
         "DATE OF ENCODING": dateEncVal,
         "TURNAROUND TIME": turnTimeVal,
         "DAYS FILED BEFORE JF": daysBeforeVal,
@@ -972,7 +1056,7 @@
       }
     }
 
-    // RENDER ALL COLUMNS IN TAB 3 (DATABASE) WITH FALLBACK KEY MAPPING
+    // RENDER ALL COLUMNS IN TAB 3 (DATABASE)
     function renderTab3Table() {
       const tbody = document.getElementById('tab3DataTableBody');
       if (!tab3DetailedRecords || tab3DetailedRecords.length === 0) {
@@ -980,6 +1064,7 @@
         return;
       }
       tbody.innerHTML = tab3DetailedRecords.map(r => {
+        const rId = r._rowIndex || r.rowIndex;
         const dateEnc = r.dateOfEncoding || r['DATE OF ENCODING'] || r['Date of Encoding'] || r['date_of_encoding'] || '';
         const turnaround = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
         const daysBefore = r.daysFiledBeforeJF || r['DAYS FILED BEFORE JF'] || r['NO. DAYS FILED BEFORE JF'] || r['Days Filed Before JF'] || r['days_filed_before_jf'] || '';
@@ -988,8 +1073,8 @@
         return `
         <tr>
           <td>
-            <button class="btn btn-warning btn-sm py-0" onclick="editRecord(${r._rowIndex || r.rowIndex})">EDIT</button>
-            <button class="btn btn-danger btn-sm py-0" onclick="executeDeleteRecord(${r._rowIndex || r.rowIndex})">DEL</button>
+            <button class="btn btn-warning btn-sm py-0" onclick="editRecord(${rId})">EDIT</button>
+            <button class="btn btn-danger btn-sm py-0" onclick="executeDeleteRecord(${rId})">DEL</button>
           </td>
           <td>${r.year || r['YEAR'] || '2026'}</td>
           <td>${r.province || r.fieldOffice || r['FIELD OFFICE'] || ''}</td>
@@ -1013,6 +1098,156 @@
       }).join('');
     }
 
+    // EDIT RECORD HANDLER & MODAL TRIGGER
+    function editRecord(rowIndex) {
+      const record = tab3DetailedRecords.find(r => (r._rowIndex || r.rowIndex) == rowIndex);
+      if (!record) {
+        showScreenAlert('RECORD NOT FOUND FOR EDITING.', 'danger');
+        return;
+      }
+
+      document.getElementById('editRowIndex').value = record._rowIndex || record.rowIndex;
+      document.getElementById('editReportingPeriod').value = record.reportingPeriod || record.month || record['REPORTING PERIOD'] || '';
+      document.getElementById('editFieldOffice').value = record.fieldOffice || record.province || record['FIELD OFFICE'] || '';
+      document.getElementById('editSponsor').value = record.sponsor || record['SPONSOR / ORGANIZER'] || '';
+      document.getElementById('editContactNumber').value = record.contactNumber || record['CONTACT NUMBER'] || '';
+      document.getElementById('editDocumentNumber').value = record.documentNumber || record['PERMIT / CLEARANCE NO.'] || '';
+      document.getElementById('editJobFairVenue').value = record.jobFairVenue || record['JOB FAIR VENUE'] || '';
+      document.getElementById('editDateOfJobFair').value = record.dateOfJobFair || record['DATE OF JOB FAIR'] || '';
+      document.getElementById('editDateFiled').value = record.dateFiled || record['DATE FILED'] || '';
+      document.getElementById('editDateIssued').value = record.dateIssued || record['DATE ISSUED'] || '';
+      document.getElementById('editDateOfEncoding').value = record.dateOfEncoding || record['DATE OF ENCODING'] || new Date().toISOString().split('T')[0];
+      
+      const action = record.actionTaken || record['ACTION TAKEN'] || 'APPROVED';
+      document.getElementById('editActionTaken').value = action;
+      document.getElementById('editDisapprovedReason').value = record.disapprovedReason || record['REASON IF DISAPPROVED'] || (action === 'APPROVED' ? 'N/A' : '');
+
+      calculateEditCalculatedFields();
+
+      const modalEl = document.getElementById('editModal');
+      const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      bsModal.show();
+    }
+
+    function toggleEditDisapprovedReason() {
+      const action = document.getElementById('editActionTaken').value;
+      if (action === 'APPROVED') {
+        document.getElementById('editDisapprovedReason').value = 'N/A';
+      } else if (document.getElementById('editDisapprovedReason').value === 'N/A') {
+        document.getElementById('editDisapprovedReason').value = '';
+      }
+    }
+
+    function calculateEditCalculatedFields() {
+      const dateFiledVal = document.getElementById('editDateFiled').value;
+      const dateIssuedVal = document.getElementById('editDateIssued').value;
+      const dateOfJobFairVal = document.getElementById('editDateOfJobFair').value;
+      const dateOfEncodingVal = document.getElementById('editDateOfEncoding').value;
+
+      // 1. Turnaround Time
+      if (dateFiledVal && dateIssuedVal) {
+        const startDate = new Date(dateFiledVal + 'T00:00:00');
+        const endDate = new Date(dateIssuedVal + 'T00:00:00');
+        
+        if (endDate >= startDate) {
+          let workingDays = 0;
+          let curDate = new Date(startDate.getTime());
+          
+          while (curDate <= endDate) {
+            const dayOfWeek = curDate.getDay();
+            const mmDd = String(curDate.getMonth() + 1).padStart(2, '0') + '-' + String(curDate.getDate()).padStart(2, '0');
+            const isSunday = (dayOfWeek === 0);
+            const isHoliday = philippineHolidays.includes(mmDd);
+
+            if (!isSunday && !isHoliday) {
+              workingDays++;
+            }
+            curDate.setDate(curDate.getDate() + 1);
+          }
+          document.getElementById('editTurnaroundTime').value = `${workingDays} DAY(S)`;
+        } else {
+          document.getElementById('editTurnaroundTime').value = `0 DAY(S)`;
+        }
+      } else {
+        document.getElementById('editTurnaroundTime').value = `0 DAY(S)`;
+      }
+
+      // 2. Days Filed Before JF
+      if (dateOfJobFairVal && dateFiledVal) {
+        const jfDate = new Date(dateOfJobFairVal + 'T00:00:00');
+        const filedDate = new Date(dateFiledVal + 'T00:00:00');
+        const diffDays = Math.round((jfDate - filedDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('editDaysFiledBeforeJF').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
+      } else {
+        document.getElementById('editDaysFiledBeforeJF').value = `0 DAY(S)`;
+      }
+
+      // 3. Days Reported
+      if (dateOfEncodingVal && dateFiledVal) {
+        const encDate = new Date(dateOfEncodingVal + 'T00:00:00');
+        const filedDate = new Date(dateFiledVal + 'T00:00:00');
+        const diffDays = Math.round((encDate - filedDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('editDaysReported').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
+      } else {
+        document.getElementById('editDaysReported').value = `0 DAY(S)`;
+      }
+    }
+
+    async function handleEditSubmit(event) {
+      event.preventDefault();
+      calculateEditCalculatedFields();
+
+      const saveBtn = document.getElementById('editSaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerText = 'SAVING...';
+
+      const rowIndex = document.getElementById('editRowIndex').value;
+      const payload = {
+        rowIndex: rowIndex,
+        reportingPeriod: document.getElementById('editReportingPeriod').value,
+        fieldOffice: document.getElementById('editFieldOffice').value,
+        sponsor: document.getElementById('editSponsor').value,
+        contactNumber: document.getElementById('editContactNumber').value,
+        documentNumber: document.getElementById('editDocumentNumber').value,
+        jobFairVenue: document.getElementById('editJobFairVenue').value,
+        dateOfJobFair: document.getElementById('editDateOfJobFair').value,
+        dateFiled: document.getElementById('editDateFiled').value,
+        dateReceived: document.getElementById('editDateFiled').value,
+        dateIssued: document.getElementById('editDateIssued').value,
+        dateOfEncoding: document.getElementById('editDateOfEncoding').value,
+        actionTaken: document.getElementById('editActionTaken').value,
+        disapprovedReason: document.getElementById('editDisapprovedReason').value,
+        turnaroundTime: document.getElementById('editTurnaroundTime').value,
+        daysFiledBeforeJF: document.getElementById('editDaysFiledBeforeJF').value,
+        daysReported: document.getElementById('editDaysReported').value
+      };
+
+      try {
+        const response = await fetch('/api/jf/update-record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (data.status === 'success' || data.success) {
+          showScreenAlert(data.message || 'RECORD UPDATED SUCCESSFULLY', 'success');
+          const modalEl = document.getElementById('editModal');
+          const bsModal = bootstrap.Modal.getInstance(modalEl);
+          if (bsModal) bsModal.hide();
+          fetchAndRenderTab3Data();
+          loadSummaryMatrixData();
+        } else {
+          showScreenAlert(data.message || 'UPDATE FAILED', 'danger');
+        }
+      } catch (err) {
+        showScreenAlert('Error connecting to server for update.', 'danger');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = 'SAVE CHANGES';
+      }
+    }
+
     async function executeDeleteRecord(rowIndex) {
       if (!confirm("Are you sure you want to delete this record?")) return;
       try {
@@ -1025,6 +1260,7 @@
         if (data.status === 'success' || data.success) {
           showScreenAlert(data.message || 'RECORD DELETED', 'success');
           fetchAndRenderTab3Data();
+          loadSummaryMatrixData();
         } else {
           showScreenAlert(data.message || 'DELETE FAILED', 'danger');
         }
