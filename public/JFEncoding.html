@@ -344,28 +344,66 @@
     <ul class="sidebar-menu">
       <li class="sidebar-section">Main</li>
       <li>
-        <button type="button" class="sidebar-btn" onclick="goToPage('Dashboard')">
+        <button type="button" id="sidebarDashboardBtn" class="sidebar-btn" onclick="goToPage('Dashboard')">
           <span class="w-100 text-start"><i class="bi bi-speedometer2 me-2"></i> Dashboard</span>
         </button>
       </li>
+
       <li class="sidebar-section">Job Fair Module</li>
       <li>
-        <button type="button" class="sidebar-btn" onclick="goToPage('NationalReports')">
+        <button type="button" id="sidebarJfReportsBtn" class="sidebar-btn" onclick="goToPage('NationalReports')">
           <span class="w-100 text-start"><i class="bi bi-briefcase me-2"></i> Job Fair Reports</span>
         </button>
       </li>
       <li>
-        <button type="button" class="sidebar-btn" onclick="goToPage('mer')">
+        <button type="button" id="sidebarMerBtn" class="sidebar-btn" onclick="goToPage('mer')">
           <span class="w-100 text-start"><i class="bi bi-briefcase me-2"></i> MER Reports</span>
         </button>
       </li>
       <li>
-        <button type="button" class="sidebar-btn active" onclick="activateTab('#tab-1')">
+        <button type="button" id="sidebarJfEncodingBtn" class="sidebar-btn active" onclick="activateTab('#tab-1')">
           <span class="w-100 text-start"><i class="bi bi-calendar3 me-2"></i> JF Clearance Encoding</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" id="sidebarSprsBtn" class="sidebar-btn" onclick="handleSprsClick(event)">
+          <span class="w-100 text-start d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-shield-lock-fill me-2 text-warning"></i> SPRS</span>
+            <i class="bi bi-lock-fill text-warning" style="font-size: 0.8rem;"></i>
+          </span>
+        </button>
+      </li>
+      <li class="sidebar-section">GIP Module</li>
+      <li>
+        <button type="button" id="sidebarEncodeBtn" class="sidebar-btn" onclick="goToPage('gip')">
+          <span class="w-100 text-start"><i class="bi bi-pencil-square me-2"></i> Encoding (GIP Entry)</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" id="sidebarSummaryBtn" class="sidebar-btn" onclick="goToPage('gip')">
+          <span class="w-100 text-start"><i class="bi bi-bar-chart-line me-2"></i> Summary Reports</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" id="sidebarContractBtn" class="sidebar-btn" onclick="goToPage('gip')">
+          <span class="w-100 text-start"><i class="bi bi-file-earmark-text me-2"></i> Contract</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" id="sidebarFormsBtn" class="sidebar-btn" onclick="goToPage('gip')">
+          <span class="w-100 text-start"><i class="bi bi-folder2-open me-2"></i> Forms</span>
+        </button>
+      </li>
+      <li class="sidebar-section">SPES Module</li>
+      <li>
+        <button type="button" id="sidebarSpesBtn" class="sidebar-btn" onclick="goToPage('spes')">
+          <span class="w-100 text-start"><i class="bi bi-calendar3 me-2"></i> SPES</span>
         </button>
       </li>
     </ul>
   </nav>
+  <!-- Mobile Drawer Backdrop Overlay -->
+  <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
   <!-- MAIN CONTENT WRAPPER -->
   <div id="main-content">
@@ -1012,7 +1050,7 @@
                 <div class="col-md-3">
                   <label class="form-label small fw-bold mb-1">SORT ORDER</label>
                   <select class="form-select form-select-sm text-uppercase" id="filterTab6Sort" onchange="renderTab6Schedules()">
-                    <option value="LATEST">LATEST TO EARLIEST (TIMESTAMP)</option>
+                    <option value="LATEST">LATEST TO EARLIEST (DATE OF JOB FAIR)</option>
                     <option value="EARLIEST">EARLIEST TO LATEST</option>
                   </select>
                 </div>
@@ -1314,11 +1352,41 @@
     ];
 
     const officeSponsors = {
-      "BATANGAS FIELD OFFICE": ["PESO BATANGAS CITY", "PESO LIPA CITY", "PESO TANAUAN CITY", "BATANGAS STATE UNIVERSITY"],
-      "CAVITE FIELD OFFICE": ["PESO BACOOR CITY", "PESO DASMARIÑAS CITY", "PESO IMUS CITY", "PESO CAVITE PROVINCE"],
-      "LAGUNA FIELD OFFICE": ["PESO CABUYAO CITY", "PESO CALAMBA CITY", "PESO SAN PEDRO CITY", "LAGUNA STATE POLYTECHNIC UNIVERSITY"],
-      "QUEZON FIELD OFFICE": ["PESO LUCENA CITY", "PESO TAYABAS CITY", "SOUTHERN LUZON STATE UNIVERSITY"],
-      "RIZAL FIELD OFFICE": ["PESO ANTIPOLO CITY", "PESO CAINTA", "PESO TAYTAY", "PESO RIZAL PROVINCE"]
+      "BATANGAS FIELD OFFICE": [
+        "PESO AGONCILLO", "PESO ALITAGTAG", "PESO BALAYAN", "PESO BALETE", "PESO BATANGAS CITY", "PESO BAUAN", "PESO CALACA", "PESO CALATAGAN", 
+        "PESO CUENCA", "PESO IBAAN", "PESO LAUREL", "PESO LEMERY", "PESO LIAN", "PESO LIPA CITY", "PESO LOBO", "PESO MABINI", "PESO MALVAR", 
+        "PESO MATAASNAKAHOY", "PESO NASUGBU", "PESO PADRE GARCIA", "PESO ROSARIO", "PESO SAN JOSE", "PESO SAN JUAN", "PESO SAN LUIS", 
+        "PESO SAN NICOLAS", "PESO SAN PASCUAL", "PESO SANTA TERESITA", "PESO SANTO TOMAS", "PESO TAAL", "PESO TALISAY", "PESO TANAUAN CITY", 
+        "PESO TAYSAN", "PESO TINGLOY", "PESO TUY", "PESO BATANGAS PROVINCE", "BATANGAS STATE UNIVERSITY", 
+        "LYCEUM OF THE PHILIPPINES UNIVERSITY-BATANGAS", "UNIVERSITY OF BATANGAS-MAIN", "RIZAL COLLEGE OF TAAL", "STI COLLEGE BACOOR", 
+        "NATIONAL UNIVERSITY-DASMARIÑAS CITY CAMPUS", "TAGAYTAY TOURISM COUNCIL", "OLIVAREZ COLLEGE-TAGAYTAY INC", "MEDICAL CENTER WESTERN BATANGAS", 
+        "LIMA ESTATE (LIMA LAND, INC.)", "CIVIL SERVICE COMMISSION FIELD OFFICE BATANGAS", "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY"
+      ],
+      "CAVITE FIELD OFFICE": [
+        "PESO ALFONSO", "PESO AMADEO", "PESO BACOOR CITY", "PESO CARMONA", "PESO CAVITE CITY", "PESO DASMARIÑAS CITY", 
+        "PESO GENERAL EMILIO AGUINALDO", "PESO GENERAL MARIANO ALVAREZ", "PESO CITY OF GENERAL TRIAS", "PESO IMUS CITY", 
+        "PESO INDANG", "PESO KAWIT", "PESO MAGALLANES", "PESO MARAGONDON", "PESO MENDEZ", "PESO NAIC", "PESO NOVELETA", "PESO ROSARIO", 
+        "PESO SILANG", "PESO TAGAYTAY CITY", "PESO TANZA", "PESO TERNATE", "PESO TRECE MARTIRES CITY", "PESO CAVITE PROVINCE"
+      ],
+      "LAGUNA FIELD OFFICE": [
+        "PESO ALAMINOS", "PESO BAY", "PESO CITY OF BIÑAN", "PESO CABUYAO CITY", "PESO CITY OF CALAMBA", "PESO CALAUAN", "PESO CAVINTI", 
+        "PESO FAMY", "PESO KALAYAAN", "PESO LILIW", "PESO LOS BAÑOS", "PESO LUISIANA", "PESO LUMBAN", "PESO MABITAC", "PESO MAGDALENA", 
+        "PESO MAJAYJAY", "PESO NAGCARLAN", "PESO PAETE", "PESO PAGSANJAN", "PESO PAKIL", "PESO PANGIL", "PESO PILA", "PESO RIZAL", 
+        "PESO SAN PABLO CITY", "PESO SAN PEDRO CITY", "PESO SANTA CRUZ", "PESO SANTA MARIA", "PESO CITY OF SANTA ROSA", 
+        "PESO SINILOAN", "PESO VICTORIA", "PESO LAGUNA PROVINCE", "LAGUNA STATE POLYTECHNIC UNIVERSITY-MAIN"
+      ],
+      "QUEZON FIELD OFFICE": [
+        "PESO AGDANGAN", "PESO ALABAT", "PESO ATIMONAN", "PESO BUENAVISTA", "PESO BURDEOS", "PESO CALAUAG", "PESO CANDELARIA", "PESO CATANAUAN", 
+        "PESO DOLORES", "PESO GENERAL LUNA", "PESO GENERAL NAKAR", "PESO GUINAYANGAN", "PESO GUMACA", "PESO INFANTA", "PESO JOMALIG", "PESO LOPEZ", 
+        "PESO LUCBAN", "PESO LUCENA CITY", "PESO MACALELON", "PESO MAUBAN", "PESO MULANAY", "PESO PADRE BURGOS", "PESO PAGBILAO", "PESO PANUKULAN", 
+        "PESO PATNANUNGAN", "PESO PEREZ", "PESO PITOGO", "PESO PLARIDEL", "PESO POLILLO", "PESO QUEZON", "PESO REAL", "PESO SAMPALOC", "PESO SAN ANDRES", 
+        "PESO SAN ANTONIO", "PESO SAN FRANCISCO", "PESO SAN NARCISO", "PESO SARIAYA", "PESO TAGKAWAYAN", "PESO TAYABAS CITY", "PESO TIAONG", 
+        "PESO UNISAN", "PESO QUEZON PROVINCE", "ACEBA SCIENCE AND TECHNOLOGY INSTITUTE-MAUBAN", "SOUTHERN LUZON STATE UNIVERSITY-LUCBAN"
+      ],
+      "RIZAL FIELD OFFICE": [
+        "PESO ANGONO", "PESO CITY OF ANTIPOLO", "PESO BARAS", "PESO BINANGONAN", "PESO CAINTA", "PESO CARDONA", "PESO JALAJALA", "PESO MORONG", 
+        "PESO PILILLA", "PESO RODRIGUEZ", "PESO SAN MATEO", "PESO TANAY", "PESO TAYTAY", "PESO TERESA", "PESO RIZAL PROVINCE"
+      ]
     };
 
     window.addEventListener('DOMContentLoaded', function() {
@@ -2882,7 +2950,28 @@
       `;
     }
 
-    // TAB 6: RENDER JOB FAIR SCHEDULES & DETAILS (MATCHING PICTURE 1)
+    // HELPER: SORT TAB 6 SCHEDULES BY DATE OF JOB FAIR LATEST TO EARLIEST
+    function sortByDateOfJobFairLatestToEarliest(records) {
+      return [...records].sort((a, b) => {
+        const getJfTime = (r) => {
+          const str = r.dateOfJobFair || r['DATE OF JOB FAIR'] || r['JOB FAIR DATE'] || r.dateFiled || r['DATE FILED'];
+          if (str) {
+            const t = Date.parse(str);
+            if (!isNaN(t)) return t;
+          }
+          return 0;
+        };
+
+        const tA = getJfTime(a);
+        const tB = getJfTime(b);
+        if (tB !== tA) {
+          return tB - tA; // Latest date first
+        }
+        return (b._rowIndex || b.rowIndex || 0) - (a._rowIndex || a.rowIndex || 0);
+      });
+    }
+
+    // TAB 6: RENDER JOB FAIR SCHEDULES & DETAILS (SORTED BY DATE OF JOB FAIR LATEST TO EARLIEST)
     function renderTab6Schedules() {
       const fProvince = (document.getElementById('filterTab6Province') ? document.getElementById('filterTab6Province').value : '').toUpperCase();
       const fMonth = (document.getElementById('filterTab6Month') ? document.getElementById('filterTab6Month').value : '').toUpperCase();
@@ -2905,9 +2994,9 @@
       });
 
       if (fSort === 'LATEST') {
-        records = sortRecordsLatestToEarliest(records);
+        records = sortByDateOfJobFairLatestToEarliest(records);
       } else {
-        records = [...records].reverse();
+        records = sortByDateOfJobFairLatestToEarliest(records).reverse();
       }
 
       const tbody = document.getElementById('tab6DataTableBody');
@@ -2969,7 +3058,7 @@
       const details = encodeURIComponent(`DOLE RO4A Job Fair Schedule\nOrganizer: ${organizer}\nVenue: ${venue}\nContact: ${contact}`);
       const location = encodeURIComponent(venue);
 
-      const calUrl = `https://calendar.google.acom/calendar/render?action=TEMPLATE&text=${title}&dates=${datesParam}&details=${details}&location=${location}`;
+      const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${datesParam}&details=${details}&location=${location}`;
       window.open(calUrl, '_blank');
     }
 
