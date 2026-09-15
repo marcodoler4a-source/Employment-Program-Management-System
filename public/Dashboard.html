@@ -260,10 +260,10 @@
                 </h3>
             </div>
 
-            <!-- Action Grid -->
+            <!-- Action Grid: Exact Filenames Matching GitHub Repository -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <!-- JF Encoding -->
-                <a href="JFEncoding.html" onclick="navigateToPage('JFEncoding.html', event)" class="shiny-button btn-blue rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                <!-- JF Encoding (Exact Filename: JFEncoding.html) -->
+                <a href="JFEncoding.html" onclick="handlePageNav('JFEncoding.html', event)" class="shiny-button btn-blue rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
                     <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-blue-200">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </div>
@@ -273,8 +273,8 @@
                     </div>
                 </a>
 
-                <!-- MER Reports -->
-                <a href="mer.html" onclick="navigateToPage('mer.html', event)" class="shiny-button btn-yellow rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                <!-- MER Reports (Exact Filename: MER.html) -->
+                <a href="MER.html" onclick="handlePageNav('MER.html', event)" class="shiny-button btn-yellow rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
                     <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-amber-200">
                         <i class="fa-solid fa-chart-column"></i>
                     </div>
@@ -284,8 +284,8 @@
                     </div>
                 </a>
 
-                <!-- National Reports -->
-                <a href="NationalReports.html" onclick="navigateToPage('NationalReports.html', event)" class="shiny-button btn-red rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                <!-- Job Fair Reports / National Reports (Exact Filename in GitHub Repo: NationalReports - NO .html EXTENSION) -->
+                <a href="NationalReports" onclick="handlePageNav('NationalReports', event)" class="shiny-button btn-red rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
                     <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-red-200">
                         <i class="fa-solid fa-file-invoice"></i>
                     </div>
@@ -295,8 +295,8 @@
                     </div>
                 </a>
 
-                <!-- SPRS -->
-                <a href="BleForms.html" onclick="navigateToPage('BleForms.html', event)" class="shiny-button btn-dark rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                <!-- SPRS (Exact Filename: BleForms.html) -->
+                <a href="BleForms.html" onclick="handlePageNav('BleForms.html', event)" class="shiny-button btn-dark rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
                     <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-gray-300">
                         <i class="fa-solid fa-users-gear"></i>
                     </div>
@@ -307,7 +307,7 @@
                 </a>
 
                 <!-- GIP -->
-                <a href="gip.html" onclick="navigateToPage('gip.html', event)" class="shiny-button btn-blue rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                <a href="gip.html" onclick="handlePageNav('gip.html', event)" class="shiny-button btn-blue rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
                     <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-blue-200">
                         <i class="fa-solid fa-folder-open"></i>
                     </div>
@@ -318,7 +318,7 @@
                 </a>
 
                 <!-- SPES -->
-                <a href="spes.html" onclick="navigateToPage('spes.html', event)" class="shiny-button btn-yellow rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                <a href="spes.html" onclick="handlePageNav('spes.html', event)" class="shiny-button btn-yellow rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
                     <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-amber-200">
                         <i class="fa-solid fa-chart-pie"></i>
                     </div>
@@ -336,7 +336,7 @@
         </div>
     </div>
 
-    <!-- Client Script for Session Guard & Smart Navigation -->
+    <!-- Client Script for Session Guard & Navigation Handler -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const keys = ['username', 'userContext', 'currentUser', 'user'];
@@ -365,26 +365,23 @@
             }
         });
 
-        function navigateToPage(targetPage, event) {
-            if (event) event.preventDefault();
-            const clean = targetPage.replace('.html', '').toLowerCase();
-            const currentUser = sessionStorage.getItem('username') || localStorage.getItem('username') || '';
-            const uParam = currentUser ? `username=${encodeURIComponent(currentUser)}` : '';
+        function handlePageNav(targetFile, event) {
+            const user = sessionStorage.getItem('username') || localStorage.getItem('username') || '';
+            const uParam = user ? '?username=' + encodeURIComponent(user) : '';
 
-            // 1. File protocol
-            if (window.location.protocol === 'file:') {
-                window.location.href = (clean.endsWith('.html') ? clean : `${clean}.html`) + (uParam ? `?${uParam}` : '');
-                return;
-            }
-
-            // 2. Query parameter search mode
+            // Express server query parameter mode e.g. ?page=...
             if (window.location.search.includes('page=')) {
-                window.location.href = `?page=${clean}` + (uParam ? `&${uParam}` : '');
+                if (event) event.preventDefault();
+                const cleanKey = targetFile.replace('.html', '').toLowerCase();
+                window.location.href = '?page=' + cleanKey + (user ? '&username=' + encodeURIComponent(user) : '');
                 return;
             }
 
-            // 3. Web server / GitHub Pages target
-            window.location.href = `${clean}.html` + (uParam ? `?${uParam}` : '');
+            // Direct link: attach username query string if present, otherwise navigate to exact file
+            if (user) {
+                if (event) event.preventDefault();
+                window.location.href = targetFile + uParam;
+            }
         }
 
         function handleLogout() {
