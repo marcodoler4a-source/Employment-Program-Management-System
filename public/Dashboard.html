@@ -1,198 +1,302 @@
-// ==========================================
-// PASSWORD STORAGE & AUTHENTICATION MODULE
-// ==========================================
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOLE Programs - Dashboard | CALABARZON</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .dashboard-bg {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 14% 18%, rgba(181, 40, 45, 0.42) 0%, transparent 30%),
+                radial-gradient(circle at 86% 16%, rgba(242, 181, 45, 0.24) 0%, transparent 28%),
+                radial-gradient(circle at 50% 88%, rgba(19, 75, 128, 0.42) 0%, transparent 40%),
+                linear-gradient(
+                    135deg,
+                    #091a2d 0%,
+                    #102f52 34%,
+                    #1a2638 58%,
+                    #4a1820 100%
+                );
+            background-attachment: fixed;
+            position: relative;
+            overflow-x: hidden;
+        }
 
-const fs = require('fs');
-const path = require('path');
-const {
-  getAllUsersMap,
-  normalizeLoginUsername,
-  userExists,
-  getProvinceForMunicipality
-} = require('./users');
+        .dashboard-bg::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(
+                    120deg,
+                    rgba(255, 255, 255, 0.025) 0%,
+                    transparent 28%,
+                    rgba(255, 212, 77, 0.035) 55%,
+                    transparent 78%
+                );
+        }
 
-const DB_PATH = path.join(__dirname, 'passwords.json');
+        .dashboard-panel {
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(18, 48, 80, 0.88) 0%,
+                    rgba(10, 31, 53, 0.90) 55%,
+                    rgba(62, 21, 29, 0.86) 100%
+                );
+            border: 1px solid rgba(255, 211, 77, 0.22);
+            box-shadow:
+                0 24px 60px rgba(0, 0, 0, 0.34),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
 
-// Reads persistent password overrides (replaces PropertiesService safely)
-function getStoredProperties() {
-  try {
-    if (fs.existsSync(DB_PATH)) {
-      const fileContent = fs.readFileSync(DB_PATH, 'utf8');
-      // If the file is completely empty or just whitespace, return empty object
-      if (!fileContent || fileContent.trim() === '') {
-        return {};
-      }
-      return JSON.parse(fileContent);
-    } else {
-      // Automatically create an empty database file if it doesn't exist yet
-      fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2), 'utf8');
-    }
-  } catch (err) {
-    console.error("Error reading password database (resetting to empty state):", err.message);
-  }
-  return {};
-}
+        .quick-actions-panel {
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255, 255, 255, 0.10),
+                    rgba(255, 255, 255, 0.045)
+                );
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                0 14px 34px rgba(0, 0, 0, 0.16);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
 
-// Saves persistent password overrides safely
-function saveStoredProperties(props) {
-  try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(props, null, 2), 'utf8');
-  } catch (err) {
-    console.error("Error saving password database:", err.message);
-  }
-}
+        .quick-actions-title {
+            color: rgba(255, 255, 255, 0.72);
+        }
 
-function getPasswordPropertyKey(cleanUser) {
-  return "USER_PASSWORD_" + String(cleanUser || "").trim().toUpperCase();
-}
+        .btn-blue {
+            background: linear-gradient(135deg, #1768b5 0%, #0d4d91 55%, #0a3a70 100%);
+            border: 1px solid rgba(108, 190, 255, 0.38);
+        }
 
-function getSavedUserPassword(cleanUser) {
-  const properties = getStoredProperties();
-  const key = getPasswordPropertyKey(cleanUser);
-  return properties[key] !== undefined ? properties[key] : null;
-}
+        .btn-red {
+            background: linear-gradient(135deg, #c9343b 0%, #9f2029 55%, #74151d 100%);
+            border: 1px solid rgba(255, 131, 136, 0.30);
+        }
 
-function getUserPassword(cleanUser) {
-  const userKey = normalizeLoginUsername(cleanUser);
-  if (!userKey) return null;
+        .btn-yellow {
+            background: linear-gradient(135deg, #d99a20 0%, #b57610 55%, #855208 100%);
+            border: 1px solid rgba(255, 220, 112, 0.34);
+        }
 
-  const savedPassword = getSavedUserPassword(userKey);
-  if (savedPassword !== null && savedPassword !== "") {
-    return savedPassword;
-  }
+        .btn-dark {
+            background: linear-gradient(135deg, #374151 0%, #1f2937 55%, #111827 100%);
+            border: 1px solid rgba(156, 163, 175, 0.30);
+        }
 
-  if (userKey === "DOLE4A") {
-    return "dole4a@2026";
-  }
+        .shiny-button {
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+            box-shadow:
+                0 7px 16px rgba(0, 0, 0, 0.20),
+                inset 0 1px 0 rgba(255, 255, 255, 0.38),
+                inset 0 -2px 0 rgba(0, 0, 0, 0.10);
+            transition:
+                transform 0.2s ease,
+                filter 0.2s ease,
+                box-shadow 0.2s ease;
+        }
 
-  const usersMap = getAllUsersMap();
-  return usersMap[userKey] || null;
-}
+        .shiny-button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 48%;
+            border-radius: inherit;
+            background: linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.22) 0%,
+                rgba(255, 255, 255, 0.08) 55%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            pointer-events: none;
+            z-index: 0;
+        }
 
-function authenticateUser(username, password) {
-  const cleanUser = normalizeLoginUsername(username);
-  const cleanPass = String(password || "");
+        .shiny-button::after {
+            content: "";
+            position: absolute;
+            top: -120%;
+            left: -45%;
+            width: 36%;
+            height: 320%;
+            transform: rotate(24deg);
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.05) 20%,
+                rgba(255, 255, 255, 0.32) 50%,
+                rgba(255, 255, 255, 0.05) 80%,
+                transparent 100%
+            );
+            pointer-events: none;
+            transition: left 0.6s ease;
+            z-index: 0;
+        }
 
-  if (!userExists(cleanUser)) {
-    return {
-      success: false,
-      message: "Invalid Username or Password. Please try again."
-    };
-  }
+        .shiny-button:hover::after {
+            left: 115%;
+        }
 
-  const correctPassword = getUserPassword(cleanUser);
-  if (correctPassword !== cleanPass) {
-    return {
-      success: false,
-      message: "Invalid Username or Password. Please try again."
-    };
-  }
+        .shiny-button:hover {
+            filter: brightness(1.08);
+            transform: translateY(-2px);
+        }
 
-  if (cleanUser === "DOLE4A") {
-    return {
-      success: true,
-      role: "admin",
-      province: "ALL",
-      municipality: "Administrator"
-    };
-  }
+        .shiny-button:active {
+            transform: translateY(0);
+        }
 
-  const userProvince = getProvinceForMunicipality(cleanUser);
-  return {
-    success: true,
-    role: "user",
-    province: userProvince,
-    municipality: cleanUser
-  };
-}
+        .shiny-button > * {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body class="dashboard-bg h-full m-0 flex items-center justify-center p-4">
 
-function changeUserPassword(username, currentPassword, newPassword) {
-  try {
-    const cleanUser = normalizeLoginUsername(username);
-    const cleanCurrentPassword = String(currentPassword || "").trim();
-    const cleanNewPassword = String(newPassword || "").trim();
+    <!-- Main Dashboard Container -->
+    <div class="dashboard-panel backdrop-blur-md rounded-2xl w-full max-w-2xl p-6 sm:p-8 relative text-white shadow-2xl">
+        
+        <!-- Header Section -->
+        <div class="flex items-center justify-between gap-4 mb-6">
+            <div class="w-16 h-16 rounded-full bg-blue-900/60 border border-blue-400/30 flex items-center justify-center text-2xl text-amber-400 flex-shrink-0">
+                <i class="fa-solid fa-building-columns"></i>
+            </div>
 
-    if (!cleanUser) {
-      return { success: false, message: "Please enter your username." };
-    }
-    if (!cleanCurrentPassword) {
-      return { success: false, message: "Please enter your current password." };
-    }
-    if (!cleanNewPassword) {
-      return { success: false, message: "Please enter a new password." };
-    }
-    if (cleanNewPassword.length < 6) {
-      return { success: false, message: "Your new password must be at least 6 characters." };
-    }
+            <div class="text-center flex-1 min-w-0">
+                <h1 class="text-2xl font-extrabold tracking-tight text-white">Employment Program Reports</h1>
+                <h2 class="text-[11px] font-bold uppercase tracking-wider text-amber-400 mt-1 mb-0.5">
+                    DEPARTMENT OF LABOR AND EMPLOYMENT
+                </h2>
+                <p class="text-xs text-blue-100 leading-relaxed">
+                    Republic of the Philippines &bull; Regional Office IV-A (CALABARZON)
+                </p>
+            </div>
 
-    if (cleanUser !== "DOLE4A") {
-      const usersMap = getAllUsersMap();
-      if (!usersMap[cleanUser]) {
-        return { success: false, message: "Username not found." };
-      }
-    }
+            <div class="w-16 h-16 rounded-full bg-red-900/60 border border-red-400/30 flex items-center justify-center text-2xl text-red-400 flex-shrink-0">
+                <i class="fa-solid fa-briefcase"></i>
+            </div>
+        </div>
 
-    const correctPassword = getUserPassword(cleanUser);
-    if (!correctPassword || cleanCurrentPassword !== correctPassword) {
-      return { success: false, message: "Your current password is incorrect." };
-    }
+        <!-- User Info Bar -->
+        <div class="bg-slate-900/60 border border-blue-500/20 rounded-xl p-3 mb-6 flex flex-wrap items-center justify-between text-xs sm:text-sm">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-user-circle text-amber-400 text-base"></i>
+                <span>User: <strong id="user-name-display" class="text-amber-300">Guest</strong></span>
+            </div>
+            <div class="flex items-center gap-2 mt-1 sm:mt-0">
+                <i class="fa-solid fa-location-dot text-blue-400 text-base"></i>
+                <span>Province: <strong id="user-province-display" class="text-blue-300">ALL</strong></span>
+            </div>
+            <button onclick="handleLogout()" class="text-xs text-rose-300 hover:text-rose-100 underline ml-auto sm:ml-0 transition-colors">
+                <i class="fa-solid fa-right-from-bracket mr-1"></i>Sign Out
+            </button>
+        </div>
 
-    if (cleanNewPassword === correctPassword) {
-      return {
-        success: false,
-        message: "Your new password must be different from your current password."
-      };
-    }
+        <!-- Quick Actions Panel -->
+        <div class="quick-actions-panel rounded-xl p-5 mb-4">
+            <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
+                <h3 class="quick-actions-title text-sm font-semibold tracking-wider uppercase flex items-center gap-2">
+                    <i class="fa-solid fa-cubes text-amber-400"></i> System Modules & Reports
+                </h3>
+            </div>
 
-    const props = getStoredProperties();
-    props[getPasswordPropertyKey(cleanUser)] = cleanNewPassword;
-    saveStoredProperties(props);
+            <!-- Action Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- JF Encoding -->
+                <a href="/jfencoding" class="shiny-button btn-blue rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                    <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-blue-200">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm">Job Fair Encoding</div>
+                        <div class="text-xs text-blue-200/80">Encode Job Fair Reports</div>
+                    </div>
+                </a>
 
-    return {
-      success: true,
-      message: "Your password has been changed successfully."
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "Unable to change password: " + error.message
-    };
-  }
-}
+                <!-- MER Reports -->
+                <a href="/mer" class="shiny-button btn-yellow rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                    <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-amber-200">
+                        <i class="fa-solid fa-chart-column"></i>
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm">MER Summary & Reports</div>
+                        <div class="text-xs text-amber-100/80">Monthly Employment Reports</div>
+                    </div>
+                </a>
 
-function resetUserPassword(username) {
-  try {
-    const cleanUser = normalizeLoginUsername(username);
-    if (!cleanUser) {
-      return { success: false, message: "Username is required." };
-    }
+                <!-- National Reports -->
+                <a href="/nationalreports" class="shiny-button btn-red rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                    <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-red-200">
+                        <i class="fa-solid fa-file-invoice"></i>
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm">National Reports / BLE</div>
+                        <div class="text-xs text-red-200/80">BLE & SPRS Forms</div>
+                    </div>
+                </a>
 
-    if (cleanUser !== "DOLE4A") {
-      const usersMap = getAllUsersMap();
-      if (!usersMap[cleanUser]) {
-        return { success: false, message: "Username not found." };
-      }
-    }
+                <!-- GIP / SPES -->
+                <a href="/gip" class="shiny-button btn-dark rounded-xl p-4 flex items-center gap-4 text-left no-underline cursor-pointer">
+                    <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center text-xl text-gray-300">
+                        <i class="fa-solid fa-users-gear"></i>
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm">GIP & SPES Program</div>
+                        <div class="text-xs text-gray-300/80">Youth & Internship Reports</div>
+                    </div>
+                </a>
+            </div>
+        </div>
 
-    const props = getStoredProperties();
-    delete props[getPasswordPropertyKey(cleanUser)];
-    saveStoredProperties(props);
+        <!-- Footer -->
+        <div class="text-center text-[11px] text-slate-400 mt-6">
+            DOLE CALABARZON Employment Program Management System &copy; 2026
+        </div>
+    </div>
 
-    return {
-      success: true,
-      message: "Password reset successfully."
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "Unable to reset password: " + error.message
-    };
-  }
-}
+    <!-- Client Script for Session Guard & Authentication Context -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Guard: Check if user is authenticated
+            const rawContext = sessionStorage.getItem('userContext');
+            
+            if (!rawContext && window.location.protocol !== 'file:') {
+                console.warn('Unauthenticated access attempt. Redirecting to login...');
+                window.location.href = '/login';
+                return;
+            }
 
-module.exports = {
-  getUserPassword,
-  authenticateUser,
-  changeUserPassword,
-  resetUserPassword
-};
+            if (rawContext) {
+                try {
+                    const userContext = JSON.parse(rawContext);
+                    document.getElementById('user-name-display').innerText = 
+                        userContext.municipality || userContext.username || 'User';
+                    document.getElementById('user-province-display').innerText = 
+                        userContext.province || 'ALL';
+                } catch (e) {
+                    console.error('Error parsing userContext:', e);
+                }
+            }
+        });
+
+        function handleLogout() {
+            sessionStorage.removeItem('userContext');
+            window.location.href = '/login';
+        }
+    </script>
+</body>
+</html>
