@@ -322,7 +322,8 @@ app.post('/api/jf/encode', (req, res) => {
       documentApplied: formData.documentApplied || "",
       actionTaken: formData.actionTaken || "APPROVED",
       disapprovedReason: formData.disapprovedReason || "N/A",
-      documentNumber: formData.documentNumber || "",
+      proofReceivedUrl: formData.proofReceivedUrl || formData["PROOF RECEIVED"] || "https://drive.google.com/drive/folders/1xRHtQ5ALfQ4Una2RkzojVgRsedY9qb5JdsIs00JuPZCt_Mo_yTlbJ6iBR0TCrvoxlCUa8JtB",
+      proofReleasedUrl: formData.proofReleasedUrl || formData["PROOF RELEASED"] || "https://drive.google.com/drive/folders/1-8jKGo9v0p2Xo6yYuidnj_APQojbX33IS3sQ5VFf7n8L33CAZCQxTIcLS3pCoPB-ZkmAfZqQ",
       entitiesOverseas: formData.entitiesOverseas || "0",
       entitiesLocal: formData.entitiesLocal || "0",
       vacanciesOverseas: formData.vacanciesOverseas || "0",
@@ -348,6 +349,8 @@ app.post('/api/jf/encode', (req, res) => {
       "NO. DAYS REPORTED": daysRep,
       "ACTION TAKEN": formData.actionTaken || "APPROVED",
       "REASON IF DISAPPROVED": formData.disapprovedReason || "N/A",
+      "PROOF RECEIVED": formData.proofReceivedUrl || formData["PROOF RECEIVED"] || "https://drive.google.com/drive/folders/1xRHtQ5ALfQ4Una2RkzojVgRsedY9qb5JdsIs00JuPZCt_Mo_yTlbJ6iBR0TCrvoxlCUa8JtB",
+      "PROOF RELEASED": formData.proofReleasedUrl || formData["PROOF RELEASED"] || "https://drive.google.com/drive/folders/1-8jKGo9v0p2Xo6yYuidnj_APQojbX33IS3sQ5VFf7n8L33CAZCQxTIcLS3pCoPB-ZkmAfZqQ",
 
       ...formData
     };
