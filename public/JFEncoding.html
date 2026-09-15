@@ -102,9 +102,21 @@
     }
     #main-content.expanded { margin-left: 0; }
 
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1030;
+    }
+
     @media (max-width: 768px) {
       #sidebar { left: -260px; }
       #sidebar.mobile-show { left: 0; }
+      #sidebar:not(.collapsed) + .sidebar-backdrop { display: block; }
       #main-content { margin-left: 0 !important; }
     }
 
@@ -1602,6 +1614,16 @@
 
     function goToPage(pageName) {
       window.location.href = '/' + pageName.toLowerCase();
+    }
+
+    function handleSprsClick(event) {
+      if (event) event.preventDefault();
+      const pwd = prompt("ENTER SPRS AUTHORIZATION PASSWORD:");
+      if (pwd === "dole4a@2026") {
+        goToPage('sprs');
+      } else if (pwd !== null) {
+        showScreenAlert("INCORRECT PASSWORD! ACCESS DENIED TO SPRS.", "danger");
+      }
     }
 
     function activateTab(tabId) {
