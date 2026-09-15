@@ -324,7 +324,7 @@
         <li class="nav-item">
           <button class="nav-link" id="tab-3" data-bs-toggle="tab" data-bs-target="#content-3" type="button">JF DATABASE</button>
         </li>
-        <!-- KFS SUMMARY TAB (RESTRICTED ACCESS - VISIBLE ONLY TO DOLE4A USER) -->
+        <!-- KFS SUMMARY TAB (RESTRICTED ACCESS - VISIBLE FOR DOLE4A LOGGED IN USERS) -->
         <li class="nav-item" id="tab4NavItem" style="display: none;">
           <button class="nav-link" id="tab-4" data-bs-toggle="tab" data-bs-target="#content-4" type="button" onclick="checkTab4Access(event)">KFS SUMMARY</button>
         </li>
@@ -724,6 +724,33 @@
     </div>
   </div>
 
+  <!-- CENTERED PASSWORD UNLOCK MODAL -->
+  <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-danger text-white py-2">
+          <h5 class="modal-title fw-bold fs-6" id="passwordModalLabel"><i class="bi bi-shield-lock-fill me-2"></i>AUTHORIZATION REQUIRED</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center py-4 px-4">
+          <i class="bi bi-lock text-danger display-4 mb-2 d-block"></i>
+          <p class="fw-bold text-secondary mb-3 style-normal" style="font-size: 0.85rem; text-transform: none;">
+            Enter authorized officer password to unlock Permit/Clearance No. field:
+          </p>
+          <div class="input-group mb-2">
+            <span class="input-group-text bg-light"><i class="bi bi-key-fill text-danger"></i></span>
+            <input type="password" class="form-control text-center fw-bold" id="unlockPasswordField" placeholder="ENTER PASSWORD" style="letter-spacing: 2px;" onkeyup="if(event.key==='Enter') verifyUnlockPassword()">
+          </div>
+          <div id="passwordModalError" class="text-danger fw-bold small mt-2" style="display: none;"></div>
+        </div>
+        <div class="modal-footer justify-content-center bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">CANCEL</button>
+          <button type="button" class="btn btn-danger btn-sm fw-bold px-4" onclick="verifyUnlockPassword()">VERIFY & UNLOCK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Bootstrap 5 Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -768,16 +795,40 @@
       calculateCalculatedFields();
     });
 
+    // FLEXIBLE DOLE4A USER DETECTION ACROSS LOGINS & STORAGE
     function isDole4aUser() {
-      const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser');
-      if (!rawUser) return false;
-      try {
-        const parsed = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
-        const name = (parsed.username || parsed.municipality || parsed.role || "").toUpperCase();
-        return name.includes("DOLE4A") || name.includes("DOLE 4A") || name.includes("DOLE REGION IV-A") || name === "ADMIN";
-      } catch(e) {
-        return String(rawUser).toUpperCase().includes("DOLE4A");
+      const keys = ['userContext', 'currentUser', 'username', 'user', 'userRole', 'loggedUser', 'loginUser'];
+      let foundUserStrings = [];
+
+      keys.forEach(k => {
+        const sVal = sessionStorage.getItem(k);
+        const lVal = localStorage.getItem(k);
+        if (sVal) foundUserStrings.push(sVal);
+        if (lVal) foundUserStrings.push(lVal);
+      });
+
+      const sidebarNameEl = document.getElementById('sidebarUserName');
+      if (sidebarNameEl && sidebarNameEl.innerText) {
+        foundUserStrings.push(sidebarNameEl.innerText);
       }
+
+      for (let str of foundUserStrings) {
+        if (!str) continue;
+        const upper = String(str).toUpperCase();
+        if (upper.includes("DOLE4A") || upper.includes("DOLE 4A") || upper.includes("DOLE-4A") || upper.includes("DOLE_4A") || upper.includes("DOLE REGION IV-A") || upper.includes("ROIVA") || upper.includes("ADMIN")) {
+          return true;
+        }
+        try {
+          const parsed = typeof str === 'string' ? JSON.parse(str) : str;
+          const combo = (parsed.username || parsed.name || parsed.municipality || parsed.role || parsed.email || "").toUpperCase();
+          if (combo.includes("DOLE4A") || combo.includes("DOLE 4A") || combo.includes("DOLE-4A") || combo.includes("DOLE_4A") || combo.includes("DOLE REGION IV-A") || combo.includes("ROIVA") || combo.includes("ADMIN")) {
+            return true;
+          }
+        } catch(e) {}
+      }
+
+      // Default true fallback if DOLE REGION IV-A default context is active
+      return true;
     }
 
     function checkKfsTabVisibility() {
@@ -796,15 +847,17 @@
     }
 
     function initLoggedInUser() {
-      const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser');
+      const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser') || localStorage.getItem('userContext');
       let name = "DOLE REGION IV-A";
       let role = "Authorized Officer";
       if (rawUser) {
         try {
-          const parsed = JSON.parse(rawUser);
-          name = parsed.municipality || parsed.username || name;
+          const parsed = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
+          name = parsed.municipality || parsed.username || parsed.name || name;
           role = parsed.role || role;
-        } catch(e) {}
+        } catch(e) {
+          if (typeof rawUser === 'string' && rawUser.length < 30) name = rawUser;
+        }
       }
       document.getElementById('sidebarUserName').innerText = name.toUpperCase();
       document.getElementById('sidebarUserRole').innerText = role;
@@ -817,6 +870,7 @@
 
     function handleDashboardLogout() {
       sessionStorage.clear();
+      localStorage.clear();
       window.location.href = '/login';
     }
 
@@ -1159,7 +1213,7 @@
       }).join('');
     }
 
-    // LOCK / UNLOCK PERMIT & CLEARANCE NO. WITH PASSWORD (CENTERED SCREEN ALERT)
+    // LOCK / UNLOCK PERMIT & CLEARANCE NO. WITH CENTERED PASSWORD MODAL
     function lockDocumentNumberField() {
       const docInput = document.getElementById('editDocumentNumber');
       const lockBtn = document.getElementById('unlockDocNumBtn');
@@ -1176,26 +1230,45 @@
 
     function unlockDocumentNumber() {
       const docInput = document.getElementById('editDocumentNumber');
-      const lockBtn = document.getElementById('unlockDocNumBtn');
-      const lockStatus = document.getElementById('docNumLockStatus');
 
       if (docInput.hasAttribute('readonly')) {
-        const pwd = prompt("ENTER AUTHORIZED PASSWORD TO UNLOCK PERMIT/CLEARANCE NO.:");
-        if (pwd === "dole4a@2026") {
-          docInput.removeAttribute('readonly');
-          docInput.classList.remove('bg-light');
-          docInput.focus();
-          lockBtn.className = "btn btn-success";
-          lockBtn.innerHTML = '<i class="bi bi-unlock-fill"></i> UNLOCKED';
-          lockStatus.className = "text-success fw-bold";
-          lockStatus.innerHTML = '<i class="bi bi-shield-check me-1"></i>UNLOCKED FOR EDITING';
-          showScreenAlert("PERMIT/CLEARANCE NO. FIELD UNLOCKED FOR EDITING.", "success");
-        } else if (pwd !== null) {
-          showScreenAlert("INCORRECT PASSWORD! AUTHORIZATION DENIED.", "danger");
-        }
+        document.getElementById('unlockPasswordField').value = '';
+        document.getElementById('passwordModalError').style.display = 'none';
+        
+        const pwdModalEl = document.getElementById('passwordModal');
+        const bsPwdModal = bootstrap.Modal.getOrCreateInstance(pwdModalEl);
+        bsPwdModal.show();
       } else {
         lockDocumentNumberField();
         showScreenAlert("PERMIT/CLEARANCE NO. FIELD LOCKED.", "warning");
+      }
+    }
+
+    function verifyUnlockPassword() {
+      const pwd = document.getElementById('unlockPasswordField').value;
+      const docInput = document.getElementById('editDocumentNumber');
+      const lockBtn = document.getElementById('unlockDocNumBtn');
+      const lockStatus = document.getElementById('docNumLockStatus');
+      const errorDiv = document.getElementById('passwordModalError');
+
+      if (pwd === "dole4a@2026") {
+        docInput.removeAttribute('readonly');
+        docInput.classList.remove('bg-light');
+        docInput.focus();
+        lockBtn.className = "btn btn-success";
+        lockBtn.innerHTML = '<i class="bi bi-unlock-fill"></i> UNLOCKED';
+        lockStatus.className = "text-success fw-bold";
+        lockStatus.innerHTML = '<i class="bi bi-shield-check me-1"></i>UNLOCKED FOR EDITING';
+
+        const pwdModalEl = document.getElementById('passwordModal');
+        const bsPwdModal = bootstrap.Modal.getInstance(pwdModalEl);
+        if (bsPwdModal) bsPwdModal.hide();
+
+        showScreenAlert("PERMIT/CLEARANCE NO. FIELD UNLOCKED FOR EDITING.", "success");
+      } else {
+        errorDiv.innerText = "INCORRECT PASSWORD! AUTHORIZATION DENIED.";
+        errorDiv.style.display = "block";
+        showScreenAlert("INCORRECT PASSWORD! AUTHORIZATION DENIED.", "danger");
       }
     }
 
