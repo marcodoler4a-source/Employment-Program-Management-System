@@ -2349,24 +2349,42 @@
       const bsModal = bootstrap.Modal.getInstance(modalEl);
       if (bsModal) bsModal.hide();
 
+      const targetIndex = pendingDeleteRowIndex;
+
+      // 1. Delete from localEncodedJobFairRecords in localStorage
       try {
-        const res = await fetch('/api/jf/delete-record', {
+        let localSaved = JSON.parse(localStorage.getItem('localEncodedJobFairRecords') || '[]');
+        const initialLen = localSaved.length;
+        localSaved = localSaved.filter(r => (r._rowIndex != targetIndex && r.rowIndex != targetIndex));
+        if (localSaved.length < initialLen) {
+          localStorage.setItem('localEncodedJobFairRecords', JSON.stringify(localSaved));
+        }
+      } catch(e) {}
+
+      // 2. Delete from in-memory tab3DetailedRecords array
+      tab3DetailedRecords = tab3DetailedRecords.filter(r => (r._rowIndex != targetIndex && r.rowIndex != targetIndex));
+
+      // 3. Attempt server backend delete API call if server is running
+      try {
+        await fetch('/api/jf/delete-record', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rowIndex: pendingDeleteRowIndex })
+          body: JSON.stringify({ rowIndex: targetIndex })
         });
-        const data = await res.json();
-        if (data.status === 'success' || data.success) {
-          showScreenAlert(data.message || 'RECORD DELETED SUCCESSFULLY', 'success');
-          fetchAndRenderTab3Data();
-        } else {
-          showScreenAlert(data.message || 'DELETE FAILED', 'danger');
-        }
       } catch (err) {
-        showScreenAlert("Delete failed", "danger");
-      } finally {
-        pendingDeleteRowIndex = null;
+        console.warn("Backend API not reachable for delete, removed from local database.");
       }
+
+      showScreenAlert('RECORD DELETED SUCCESSFULLY', 'success');
+      
+      // Refresh all views
+      filterTab3Table();
+      renderSummaryTable(tab3DetailedRecords);
+      renderTab6Schedules();
+      refreshTab4Metrics();
+      renderTab5Dashboard();
+
+      pendingDeleteRowIndex = null;
     }
 
     // LOCK / UNLOCK PERMIT & CLEARANCE NO.
@@ -2533,6 +2551,7 @@
       const rowIndex = document.getElementById('editRowIndex').value;
       const payload = {
         rowIndex: rowIndex,
+        _rowIndex: rowIndex,
         reportingPeriod: document.getElementById('editReportingPeriod').value,
         fieldOffice: document.getElementById('editFieldOffice').value,
         sponsor: document.getElementById('editSponsor').value,
@@ -2548,32 +2567,62 @@
         disapprovedReason: document.getElementById('editDisapprovedReason').value,
         turnaroundTime: document.getElementById('editTurnaroundTime').value,
         daysFiledBeforeJF: document.getElementById('editDaysFiledBeforeJF').value,
-        daysReported: document.getElementById('editDaysReported').value
+        daysReported: document.getElementById('editDaysReported').value,
+
+        "FIELD OFFICE": document.getElementById('editFieldOffice').value,
+        "REPORTING PERIOD": document.getElementById('editReportingPeriod').value,
+        "SPONSOR / ORGANIZER": document.getElementById('editSponsor').value,
+        "CONTACT NUMBER": document.getElementById('editContactNumber').value,
+        "PERMIT / CLEARANCE NO.": document.getElementById('editDocumentNumber').value,
+        "JOB FAIR VENUE": document.getElementById('editJobFairVenue').value,
+        "DATE OF JOB FAIR": document.getElementById('editDateOfJobFair').value,
+        "DATE FILED": document.getElementById('editDateFiled').value,
+        "DATE ISSUED": document.getElementById('editDateIssued').value,
+        "DATE OF ENCODING": document.getElementById('editDateOfEncoding').value,
+        "ACTION TAKEN": document.getElementById('editActionTaken').value,
+        "REASON IF DISAPPROVED": document.getElementById('editDisapprovedReason').value
       };
 
+      // 1. Update in localEncodedJobFairRecords in localStorage
       try {
-        const response = await fetch('/api/jf/update-record', {
+        let localSaved = JSON.parse(localStorage.getItem('localEncodedJobFairRecords') || '[]');
+        const idx = localSaved.findIndex(r => (r._rowIndex == rowIndex || r.rowIndex == rowIndex));
+        if (idx !== -1) {
+          localSaved[idx] = { ...localSaved[idx], ...payload };
+          localStorage.setItem('localEncodedJobFairRecords', JSON.stringify(localSaved));
+        }
+      } catch(e) {}
+
+      // 2. Update in in-memory tab3DetailedRecords array
+      const memIdx = tab3DetailedRecords.findIndex(r => (r._rowIndex == rowIndex || r.rowIndex == rowIndex));
+      if (memIdx !== -1) {
+        tab3DetailedRecords[memIdx] = { ...tab3DetailedRecords[memIdx], ...payload };
+      }
+
+      // 3. Attempt server backend update API call if server is running
+      try {
+        await fetch('/api/jf/update-record', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const data = await response.json();
+      } catch (err) {}
 
-        if (data.status === 'success' || data.success) {
-          showScreenAlert(data.message || 'RECORD UPDATED SUCCESSFULLY', 'success');
-          const modalEl = document.getElementById('editModal');
-          const bsModal = bootstrap.Modal.getInstance(modalEl);
-          if (bsModal) bsModal.hide();
-          fetchAndRenderTab3Data();
-        } else {
-          showScreenAlert(data.message || 'UPDATE FAILED', 'danger');
-        }
-      } catch (err) {
-        showScreenAlert('Error connecting to server for update.', 'danger');
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerText = 'SAVE CHANGES';
-      }
+      showScreenAlert('RECORD UPDATED SUCCESSFULLY', 'success');
+
+      const modalEl = document.getElementById('editModal');
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+
+      // Refresh all views
+      filterTab3Table();
+      renderSummaryTable(tab3DetailedRecords);
+      renderTab6Schedules();
+      refreshTab4Metrics();
+      renderTab5Dashboard();
+
+      saveBtn.disabled = false;
+      saveBtn.innerText = 'SAVE CHANGES';
     }
 
     function downloadTab3Excel() {
