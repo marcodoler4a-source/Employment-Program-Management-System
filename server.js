@@ -1,10 +1,12 @@
 // ==========================================
-// WEB APP ROUTING & ENTRY POINTS (Express)
+// WEB APP ROUTING & ENTRY POINTS (Node.js / Express)
 // ==========================================
 
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios'); // For optional Google Sheets Sync
+
 const {
   getCurrentUserContext,
   isUserAuthorized
@@ -18,10 +20,17 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Set your optional deployed Google Apps Script Web App URL here
+const GOOGLE_SHEETS_WEBHOOK_URL = process.env.GOOGLE_SHEETS_WEBHOOK_URL || '';
+
+// Body parser middleware for handling form and JSON submissions
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from 'public' folder (CSS, JS, images, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Page configuration matching GAS doGet pageConfig mapping
 const PAGE_CONFIG = {
   'login':           { files: ['login', 'Login'], title: 'DOLE Employment Program | CALABARZON' },
   'dashboard':       { files: ['Dashboard', 'dashboard', 'GIP', 'gip', 'Index'], title: 'Dashboard | CALABARZON' },
@@ -124,7 +133,7 @@ app.get('/html/:page', (req, res) => {
 });
 
 // ==========================================
-// API ENDPOINTS
+// API ENDPOINTS (AUTHENTICATION & USER CONTEXT)
 // ==========================================
 
 app.post('/api/auth/login', (req, res) => {
@@ -150,15 +159,14 @@ app.get('/api/user/authorized', (req, res) => {
   res.json({ email: req.query.email, authorized: isUserAuthorized(req.query.email) });
 });
 
-app.listen(PORT, () => {
-  console.log(`DOLE CALABARZON Express Server listening on port ${PORT}`);
+app.get('/api/script-url', (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get('host')}`;
+  res.json({ url: fullUrl });
 });
-
 
 // ==========================================
 // JOB FAIR ENCODING & RECORDS BACKEND MODULE
 // ==========================================
-
 
 const JF_DB_PATH = path.join(__dirname, 'jf_records.json');
 
@@ -184,19 +192,30 @@ function saveJfRecords(records) {
 }
 
 // API: Get All Records (Tab 3 & Tab 6)
-app.get('/api/jf/records', (req, res) => {
+app.get('/api/jf/records', async (req, res) => {
+  // If Google Sheets webhook is configured, attempt sync first
+  if (GOOGLE_SHEETS_WEBHOOK_URL) {
+    try {
+      const response = await axios.get(GOOGLE_SHEETS_WEBHOOK_URL);
+      if (response.data && Array.isArray(response.data)) {
+        return res.json({ status: 'success', records: response.data });
+      }
+    } catch (err) {
+      console.warn("Google Sheets fetch failed, falling back to local JSON database:", err.message);
+    }
+  }
   const records = getJfRecords();
-  res.json(records);
+  res.json({ status: 'success', records });
 });
 
 // API: Get JF Summary Data (Tab 2)
 app.get('/api/jf/summary', (req, res) => {
   const records = getJfRecords();
-  res.json(records);
+  res.json({ status: 'success', records });
 });
 
 // API: Save New Encoded Record (Tab 1)
-app.post('/api/jf/encode', (req, res) => {
+app.post('/api/jf/encode', async (req, res) => {
   try {
     const formData = req.body;
     const records = getJfRecords();
@@ -214,75 +233,97 @@ app.post('/api/jf/encode', (req, res) => {
       contactNumber: formData.contactNumber || "",
       dateOfJobFair: formData.dateOfJobFair || "",
       dateFiled: formData.dateFiled || "",
-      dateReceived: formData.dateFiled || "",
+      dateIssued: formData.dateIssued || "",
+      dateOfEncoding: formData.dateOfEncoding || now.toISOString().split('T')[0],
+      turnaroundTime: formData.turnaroundTime || "0 DAY(S)",
+      daysFiledBeforeJF: formData.daysFiledBeforeJF || "0 DAY(S)",
+      daysReported: formData.daysReported || "0 DAY(S)",
       jobFairVenue: formData.jobFairVenue || "",
       documentApplied: formData.documentApplied || "",
       actionTaken: formData.actionTaken || "APPROVED",
       disapprovedReason: formData.disapprovedReason || "N/A",
-      documentNumber: formData.documentNumber || "",
-      dateIssued: formData.dateIssued || "",
-      entitiesOverseas: formData.entitiesOverseas || "0",
-      entitiesLocal: formData.entitiesLocal || "0",
-      vacanciesOverseas: formData.vacanciesOverseas || "0",
-      vacanciesLocal: formData.vacanciesLocal || "0",
-      proofReceivedUrl: "",
-      proofReleasedUrl: ""
+      documentNumber: formData.documentNumber || ""
     };
 
     records.push(newRecord);
     saveJfRecords(records);
 
+    // Sync to Google Sheets if configured
+    if (GOOGLE_SHEETS_WEBHOOK_URL) {
+      try {
+        await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, { action: 'create', data: newRecord });
+      } catch (sheetErr) {
+        console.warn("Failed to sync new record to Google Sheets:", sheetErr.message);
+      }
+    }
+
     res.json({
+      status: 'success',
       success: true,
       message: "Job Fair Record saved successfully!"
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ status: 'error', success: false, message: err.message });
   }
 });
 
-// API: Update Record (Edit Modal)
-app.post('/api/jf/update-record', (req, res) => {
+// API: Update Record
+app.post('/api/jf/update-record', async (req, res) => {
   try {
-    const { rowIndex, sponsor, jobFairVenue, dateOfJobFair, dateFiled, dateReceived, documentNumber } = req.body;
+    const { rowIndex, data } = req.body;
     let records = getJfRecords();
 
-    const idx = records.findIndex(r => r.rowIndex == rowIndex);
-    if (idx !== -1) {
-      if (sponsor) records[idx].sponsor = sponsor;
-      if (jobFairVenue) records[idx].jobFairVenue = jobFairVenue;
-      if (dateOfJobFair) records[idx].dateOfJobFair = dateOfJobFair;
-      if (dateFiled) records[idx].dateFiled = dateFiled;
-      if (dateReceived) records[idx].dateReceived = dateReceived;
-      if (documentNumber) records[idx].documentNumber = documentNumber;
+    const targetIndex = rowIndex || (data && data.rowIndex);
+    const idx = records.findIndex(r => r.rowIndex == targetIndex);
 
+    if (idx !== -1) {
+      const updatedFields = data || req.body;
+      records[idx] = { ...records[idx], ...updatedFields };
       saveJfRecords(records);
-      return res.json({ success: true, message: "Record updated successfully!" });
+
+      if (GOOGLE_SHEETS_WEBHOOK_URL) {
+        try {
+          await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, { action: 'update', rowIndex: targetIndex, data: records[idx] });
+        } catch (sheetErr) {
+          console.warn("Failed to sync update to Google Sheets:", sheetErr.message);
+        }
+      }
+
+      return res.json({ status: 'success', success: true, message: "Record updated successfully!" });
     }
 
-    res.status(404).json({ success: false, message: "Record not found." });
+    res.status(404).json({ status: 'error', success: false, message: "Record not found." });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ status: 'error', success: false, message: err.message });
   }
 });
 
-// API: Delete Record (Delete Modal)
-app.post('/api/jf/delete-record', (req, res) => {
+// API: Delete Record
+app.post('/api/jf/delete-record', async (req, res) => {
   try {
     const { rowIndex } = req.body;
     let records = getJfRecords();
 
     const initialLength = records.length;
-    records = records.filter(r => r.rowIndex != rowIndex);
+    records = records.filter(r => r.rowIndex != rowIndex && r._rowIndex != rowIndex);
 
     if (records.length < initialLength) {
       saveJfRecords(records);
-      return res.json({ success: true, message: "Record deleted successfully!" });
+
+      if (GOOGLE_SHEETS_WEBHOOK_URL) {
+        try {
+          await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, { action: 'delete', rowIndex });
+        } catch (sheetErr) {
+          console.warn("Failed to sync deletion to Google Sheets:", sheetErr.message);
+        }
+      }
+
+      return res.json({ status: 'success', success: true, message: "Record deleted successfully!" });
     }
 
-    res.status(404).json({ success: false, message: "Record not found." });
+    res.status(404).json({ status: 'error', success: false, message: "Record not found." });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ status: 'error', success: false, message: err.message });
   }
 });
 
@@ -312,6 +353,9 @@ app.get('/api/jf/tab4-breakdown', (req, res) => {
         actionTaken: r.actionTaken || "APPROVED",
         clearanceNo: r.documentNumber || "",
         documentNumber: r.documentNumber || "",
+        turnaroundTime: r.turnaroundTime || "",
+        daysFiledBeforeJF: r.daysFiledBeforeJF || "",
+        daysReported: r.daysReported || "",
         days: days
       };
 
@@ -323,11 +367,19 @@ app.get('/api/jf/tab4-breakdown', (req, res) => {
     });
 
     res.json({
+      status: 'success',
       success: true,
       clearanceRecords,
       permitRecords
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ status: 'error', success: false, message: err.message });
   }
+});
+
+// ==========================================
+// START SERVER (Placed at the very end!)
+// ==========================================
+app.listen(PORT, () => {
+  console.log(`DOLE CALABARZON Express Server listening on port ${PORT}`);
 });
