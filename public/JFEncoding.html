@@ -255,8 +255,12 @@
       display: none;
     }
 
-    /* PRINT SPECIFIC STYLING (FOR BLE REPORT PRINTING ONLY - MATCHING IMAGE 2) */
+    /* PRINT SPECIFIC STYLING (FOR BLE REPORT PRINTING ONLY - MATCHING IMAGE 1 & PICTURE 1) */
     @media print {
+      @page {
+        size: landscape;
+        margin: 8mm;
+      }
       body * {
         visibility: hidden !important;
       }
@@ -268,9 +272,37 @@
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
-      .no-print, #sidebar, .header-banner, .nav-tabs, .btn, select, label, .ble-action-btn {
+      .no-print, #sidebar, .header-banner, .nav-tabs, .btn, select, label, .ble-action-btn, #screenAlertContainer {
         display: none !important;
+      }
+      #printableBleReportArea .row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        margin: 0 !important;
+      }
+      #printableBleReportArea .col-lg-8, #printableBleReportArea .col-md-12:first-child {
+        width: 72% !important;
+        flex: 0 0 72% !important;
+        max-width: 72% !important;
+        padding-right: 8px !important;
+      }
+      #printableBleReportArea .col-lg-4, #printableBleReportArea .col-md-12:last-child {
+        width: 27% !important;
+        flex: 0 0 27% !important;
+        max-width: 27% !important;
+        padding-left: 8px !important;
+      }
+      #printableBleReportArea table {
+        font-size: 0.7rem !important;
+        width: 100% !important;
+      }
+      #printableBleReportArea th, #printableBleReportArea td {
+        padding: 4px 6px !important;
       }
     }
   </style>
@@ -291,7 +323,7 @@
     </div>
 
     <!-- LOGGED IN USER CARD (SHOWS ACTUAL LOGGED-IN USERNAME INSTEAD OF ADMINISTRATOR) -->
-    <div class="sidebar-user-box d-flex align-items-center gap-2">
+    <div class="sidebar-user-box d-flex align-items-center gap-2" onclick="promptChangeUsername()" style="cursor: pointer;" title="Click to edit username/office">
       <div class="sidebar-user-avatar">
         <i class="bi bi-person-fill"></i>
       </div>
@@ -301,10 +333,10 @@
           <span class="text-white-50" style="font-size: 0.65rem;">LOGGED IN USER</span>
         </div>
         <div class="fw-bold text-white text-truncate" id="sidebarUserName" style="font-size: 0.85rem;">
-          DOLE REGION IV-A
+          DOLE4A
         </div>
         <div class="text-white-50 text-truncate" id="sidebarUserRole" style="font-size: 0.75rem; text-transform: none;">
-          DOLE REGION IV-A
+          DOLE4A
         </div>
       </div>
     </div>
@@ -748,8 +780,7 @@
                   </select>
                 </div>
                 <div class="col-md-4 d-flex align-items-end gap-2">
-                  <button class="btn btn-outline-secondary btn-sm w-50 fw-bold" onclick="resetKfsFilters()">RESET FILTERS</button>
-                  <button class="btn btn-primary btn-sm w-50 fw-bold" onclick="refreshTab4Metrics()"><i class="bi bi-arrow-clockwise me-1"></i> REFRESH</button>
+                  <button class="btn btn-outline-secondary btn-sm w-100 fw-bold" onclick="resetKfsFilters()">RESET FILTERS</button>
                 </div>
               </div>
             </div>
@@ -858,7 +889,6 @@
                   <button class="btn btn-success ble-action-btn" onclick="printBleReportOnly()"><i class="bi bi-printer me-1"></i> PRINT</button>
                   <button class="btn btn-success ble-action-btn" onclick="downloadBleReportExcel()"><i class="bi bi-download me-1"></i> DOWNLOAD</button>
                   <button class="btn btn-secondary ble-action-btn" onclick="openEndorsementModal()"><i class="bi bi-file-earmark-text me-1"></i> ENDORSEMENT</button>
-                  <button class="btn btn-primary ble-action-btn" onclick="activateTab('#tab-4')"><i class="bi bi-bar-chart-fill me-1"></i> KFS SUMMARY</button>
                 </div>
               </div>
             </div>
@@ -1268,22 +1298,56 @@
       }
     }
 
-    // SHOW ACTUAL LOGGED IN USERNAME INSTEAD OF ADMINISTRATOR
+    // SHOW ACTUAL LOGGED IN USERNAME INSTEAD OF ADMINISTRATOR (MATCHING PICTURE 2 REQUIREMENT)
     function initLoggedInUser() {
-      const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser') || localStorage.getItem('userContext') || localStorage.getItem('username') || sessionStorage.getItem('username');
-      let username = "DOLE REGION IV-A";
+      // 1. Check URL parameter override (e.g. ?username=DOLE4A or ?user=CALAMBA)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUser = urlParams.get('username') || urlParams.get('user') || urlParams.get('office') || urlParams.get('account');
       
-      if (rawUser) {
-        try {
-          const parsed = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
-          username = parsed.username || parsed.name || parsed.user || parsed.municipality || username;
-        } catch(e) {
-          if (typeof rawUser === 'string' && rawUser.length < 50) username = rawUser;
+      const keys = ['username', 'userContext', 'currentUser', 'user', 'loggedUser', 'loggedInUser', 'userRole', 'account', 'LOGGED_IN_USER', 'USER_NAME'];
+      let detectedUser = urlUser || null;
+
+      if (!detectedUser) {
+        for (let key of keys) {
+          const sVal = sessionStorage.getItem(key);
+          const lVal = localStorage.getItem(key);
+          const val = sVal || lVal;
+          if (val) {
+            try {
+              const parsed = JSON.parse(val);
+              detectedUser = parsed.username || parsed.name || parsed.user || parsed.office || parsed.municipality || val;
+            } catch(e) {
+              detectedUser = val;
+            }
+            if (detectedUser && typeof detectedUser === 'string' && detectedUser.trim() !== '') break;
+          }
         }
       }
 
-      document.getElementById('sidebarUserName').innerText = username.toUpperCase();
-      document.getElementById('sidebarUserRole').innerText = username.toUpperCase();
+      if (!detectedUser && window.currentUser) detectedUser = window.currentUser;
+      if (!detectedUser && window.username) detectedUser = window.username;
+
+      // Default fallback if no user context is detected
+      let finalUsername = (detectedUser && typeof detectedUser === 'string' && detectedUser.trim() !== '') ? detectedUser.trim() : "DOLE4A";
+
+      // Enforce capital user display
+      finalUsername = finalUsername.toUpperCase();
+
+      const nameEl = document.getElementById('sidebarUserName');
+      const roleEl = document.getElementById('sidebarUserRole');
+      if (nameEl) nameEl.innerText = finalUsername;
+      if (roleEl) roleEl.innerText = finalUsername;
+    }
+
+    function promptChangeUsername() {
+      const current = document.getElementById('sidebarUserName')?.innerText || 'DOLE4A';
+      const input = prompt("Enter your username/office (e.g., DOLE4A, CALAMBA):", current);
+      if (input && input.trim() !== '') {
+        const clean = input.trim().toUpperCase();
+        localStorage.setItem('username', clean);
+        sessionStorage.setItem('username', clean);
+        initLoggedInUser();
+      }
     }
 
     // FLEXIBLE DOLE4A USER DETECTION ACROSS LOGINS & STORAGE
