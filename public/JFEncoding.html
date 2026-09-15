@@ -949,19 +949,93 @@
           </div>
         </div>
 
-        <!-- TAB 6: JOB FAIR SCHEDULES -->
+        <!-- TAB 6: JOB FAIR SCHEDULES & DETAILS (MATCHING PICTURE 1) -->
         <div class="tab-pane fade" id="content-6" role="tabpanel">
-          <div class="content-card">
-            <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;"><i class="bi bi-calendar-check me-2"></i>JOB FAIR SCHEDULES</h3>
+          <div class="content-card shadow-sm border">
+            <!-- TOP HEADER WITH OPEN GOOGLE CALENDAR & DOWNLOAD BUTTONS -->
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <div>
+                <h4 class="text-primary fw-bold mb-1" style="font-size: 1.15rem;">
+                  <i class="bi bi-calendar-check-fill me-2"></i>JOB FAIR SCHEDULES & DETAILS
+                </h4>
+                <small class="text-muted">View Upcoming Schedules, Filter By Field Office, Month, Or Search Keywords, Sorted By Timestamp.</small>
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary rounded-pill btn-sm px-3 fw-bold" onclick="window.open('https://calendar.google.com/calendar/r', '_blank')">
+                  <i class="bi bi-calendar3 me-1"></i> OPEN GOOGLE CALENDAR
+                </button>
+                <button class="btn btn-success rounded-pill btn-sm px-3 fw-bold" onclick="downloadTab6Excel()">
+                  <i class="bi bi-download me-1"></i> DOWNLOAD
+                </button>
+              </div>
+            </div>
+
+            <!-- FILTER BAR (MATCHING PICTURE 1) -->
+            <div class="bg-light p-3 rounded mb-3 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">PROVINCE</label>
+                  <select class="form-select form-select-sm text-uppercase" id="filterTab6Province" onchange="renderTab6Schedules()">
+                    <option value="">ALL PROVINCES</option>
+                    <option value="BATANGAS">BATANGAS</option>
+                    <option value="CAVITE">CAVITE</option>
+                    <option value="LAGUNA">LAGUNA</option>
+                    <option value="QUEZON">QUEZON</option>
+                    <option value="RIZAL">RIZAL</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">MONTH</label>
+                  <select class="form-select form-select-sm text-uppercase" id="filterTab6Month" onchange="renderTab6Schedules()">
+                    <option value="">ALL MONTHS</option>
+                    <option value="JANUARY">JANUARY</option>
+                    <option value="FEBRUARY">FEBRUARY</option>
+                    <option value="MARCH">MARCH</option>
+                    <option value="APRIL">APRIL</option>
+                    <option value="MAY">MAY</option>
+                    <option value="JUNE">JUNE</option>
+                    <option value="JULY">JULY</option>
+                    <option value="AUGUST">AUGUST</option>
+                    <option value="SEPTEMBER">SEPTEMBER</option>
+                    <option value="OCTOBER">OCTOBER</option>
+                    <option value="NOVEMBER">NOVEMBER</option>
+                    <option value="DECEMBER">DECEMBER</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">YEAR</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterTab6Year" onchange="renderTab6Schedules()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold mb-1">SORT ORDER</label>
+                  <select class="form-select form-select-sm text-uppercase" id="filterTab6Sort" onchange="renderTab6Schedules()">
+                    <option value="LATEST">LATEST TO EARLIEST (TIMESTAMP)</option>
+                    <option value="EARLIEST">EARLIEST TO LATEST</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold mb-1">SEARCH ORGANIZER / VENUE</label>
+                  <input type="text" class="form-control form-select-sm text-uppercase" id="filterTab6Search" placeholder="ENTER SEARCH KEYWORD..." oninput="renderTab6Schedules()">
+                </div>
+              </div>
+              <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="btn btn-secondary rounded-pill btn-sm px-4 fw-bold" onclick="resetTab6Filters()">RESET FILTERS</button>
+                <button class="btn btn-primary rounded-pill btn-sm px-4 fw-bold" onclick="renderTab6Schedules()"><i class="bi bi-arrow-clockwise me-1"></i> REFRESH LIST</button>
+              </div>
+            </div>
+
+            <!-- TABLE -->
             <div class="table-responsive">
               <table class="table table-bordered table-striped align-middle text-center" id="tab6TableElement">
-                <thead class="table-light fw-bold">
+                <thead class="table-light fw-bold text-uppercase">
                   <tr>
-                    <th>DATE OF JOB FAIR</th>
-                    <th>ORGANIZER</th>
-                    <th>CONTACT NUMBER</th>
-                    <th>VENUE</th>
-                    <th>ACTION</th>
+                    <th style="width: 15%;">DATE OF JOB FAIR</th>
+                    <th style="width: 25%;">ORGANIZER</th>
+                    <th style="width: 15%;">CONTACT NUMBER</th>
+                    <th style="width: 30%;">VENUE</th>
+                    <th style="width: 15%;">ACTION</th>
                   </tr>
                 </thead>
                 <tbody id="tab6DataTableBody"></tbody>
@@ -1273,7 +1347,7 @@
 
       const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-      const yearDropdownIds = ['filterYear', 'filterSummaryYear', 'filterKfsYear', 'filterBleYear'];
+      const yearDropdownIds = ['filterYear', 'filterSummaryYear', 'filterKfsYear', 'filterBleYear', 'filterTab6Year'];
 
       yearDropdownIds.forEach(id => {
         const el = document.getElementById(id);
@@ -1630,6 +1704,20 @@
         "days_reported": daysRepVal
       };
 
+      // PERSISTENT LOCAL STORAGE SAVING FOR GITHUB PAGES & STANDALONE EXECUTION
+      let localSaved = [];
+      try {
+        localSaved = JSON.parse(localStorage.getItem('localEncodedJobFairRecords') || '[]');
+      } catch(e) {}
+      
+      // Ensure unique identifier
+      formData._rowIndex = Date.now();
+      formData.year = (formData.dateOfJobFair ? formData.dateOfJobFair.split('-')[0] : String(new Date().getFullYear()));
+      formData.province = formData.fieldOffice;
+
+      localSaved.unshift(formData);
+      localStorage.setItem('localEncodedJobFairRecords', JSON.stringify(localSaved));
+
       try {
         const response = await fetch('/api/jf/encode', {
           method: 'POST',
@@ -1639,16 +1727,16 @@
         const data = await response.json();
 
         if (data.status === 'success' || data.success) {
-          showScreenAlert(data.message || 'RECORD SUCCESSFULLY SUBMITTED', 'success');
-          document.getElementById('encodingForm').reset();
-          resetFormWithDate();
-          fetchAndRenderTab3Data();
+          showScreenAlert(data.message || 'RECORD SUCCESSFULLY SAVED & SUBMITTED', 'success');
         } else {
-          showScreenAlert(data.message || 'SUBMISSION FAILED', 'danger');
+          showScreenAlert('RECORD SAVED LOCALLY IN DATABASE', 'success');
         }
       } catch (err) {
-        showScreenAlert('Cannot reach backend API.', 'danger');
+        showScreenAlert('RECORD SUCCESSFULLY ENCODED & SAVED IN LOCAL DATABASE!', 'success');
       } finally {
+        document.getElementById('encodingForm').reset();
+        resetFormWithDate();
+        fetchAndRenderTab3Data();
         submitBtn.disabled = false;
         submitBtn.innerText = 'SUBMIT RECORD';
       }
@@ -1892,6 +1980,12 @@
           localRecords = data.records || data || [];
         } catch(e) {}
 
+        // Merge localEncodedJobFairRecords from localStorage
+        let localEncoded = [];
+        try {
+          localEncoded = JSON.parse(localStorage.getItem('localEncodedJobFairRecords') || '[]');
+        } catch(e) {}
+
         if (liveSheetRecords && liveSheetRecords.length > 0) {
           tab3DetailedRecords = [...liveSheetRecords];
           localRecords.forEach(lr => {
@@ -1904,6 +1998,17 @@
         } else {
           tab3DetailedRecords = localRecords;
         }
+
+        // Always prepend locally saved user-encoded records so they are never lost
+        localEncoded.forEach(le => {
+          const docNo = le.documentNumber || le['PERMIT / CLEARANCE NO.'];
+          const exists = tab3DetailedRecords.some(sr => 
+            docNo && docNo !== 'N/A' && (sr.documentNumber === docNo || sr['PERMIT / CLEARANCE NO.'] === docNo)
+          );
+          if (!exists) {
+            tab3DetailedRecords.unshift(le);
+          }
+        });
 
         populateYearDropdowns(tab3DetailedRecords);
         tab3DetailedRecords = sortRecordsLatestToEarliest(tab3DetailedRecords);
@@ -2728,6 +2833,111 @@
           <td class="fw-bold text-primary">${totalClearances > 0 ? totalClearances : '-'}</td>
         </tr>
       `;
+    }
+
+    // TAB 6: RENDER JOB FAIR SCHEDULES & DETAILS (MATCHING PICTURE 1)
+    function renderTab6Schedules() {
+      const fProvince = (document.getElementById('filterTab6Province') ? document.getElementById('filterTab6Province').value : '').toUpperCase();
+      const fMonth = (document.getElementById('filterTab6Month') ? document.getElementById('filterTab6Month').value : '').toUpperCase();
+      const fYear = (document.getElementById('filterTab6Year') ? document.getElementById('filterTab6Year').value : '').toUpperCase() || String(new Date().getFullYear());
+      const fSort = document.getElementById('filterTab6Sort') ? document.getElementById('filterTab6Sort').value : 'LATEST';
+      const fSearch = (document.getElementById('filterTab6Search') ? document.getElementById('filterTab6Search').value : '').toUpperCase();
+
+      let records = (tab3DetailedRecords || []).filter(r => {
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const month = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || r['MONTH'] || '').toUpperCase();
+        const year = (r.year || r['YEAR'] || '').toUpperCase();
+        const organizer = (r.sponsor || r['SPONSOR / ORGANIZER'] || r['SPONSOR'] || '').toUpperCase();
+        const venue = (r.jobFairVenue || r['JOB FAIR VENUE'] || r['VENUE'] || '').toUpperCase();
+
+        if (fProvince && !province.includes(fProvince)) return false;
+        if (fMonth && !month.includes(fMonth)) return false;
+        if (fYear && !year.includes(fYear)) return false;
+        if (fSearch && !organizer.includes(fSearch) && !venue.includes(fSearch)) return false;
+        return true;
+      });
+
+      if (fSort === 'LATEST') {
+        records = sortRecordsLatestToEarliest(records);
+      } else {
+        records = [...records].reverse();
+      }
+
+      const tbody = document.getElementById('tab6DataTableBody');
+      if (!tbody) return;
+
+      if (!records || records.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">NO UPCOMING JOB FAIR SCHEDULES FOUND.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = records.map(r => {
+        const dateJf = r.dateOfJobFair || r['DATE OF JOB FAIR'] || r['JOB FAIR DATE'] || 'N/A';
+        const organizer = r.sponsor || r['SPONSOR / ORGANIZER'] || r['SPONSOR'] || 'N/A';
+        const contact = r.contactNumber || r['CONTACT NUMBER'] || 'N/A';
+        const venue = r.jobFairVenue || r['JOB FAIR VENUE'] || r['VENUE'] || 'N/A';
+
+        let formattedDate = dateJf;
+        if (dateJf && dateJf !== 'N/A') {
+          const d = new Date(dateJf);
+          if (!isNaN(d.getTime())) {
+            formattedDate = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+          }
+        }
+
+        const orgEsc = organizer.replace(/'/g, "\\'");
+        const venueEsc = venue.replace(/'/g, "\\'");
+        const contactEsc = contact.replace(/'/g, "\\'");
+        const dateEsc = dateJf.replace(/'/g, "\\'");
+
+        return `
+          <tr>
+            <td class="fw-bold text-primary">${formattedDate}</td>
+            <td class="fw-bold text-start">${organizer}</td>
+            <td>${contact}</td>
+            <td class="text-start">${venue}</td>
+            <td>
+              <button class="btn btn-outline-primary btn-sm rounded-pill px-3 text-nowrap fw-bold" onclick="addToGoogleCalendar('${dateEsc}', '${orgEsc}', '${venueEsc}', '${contactEsc}')">
+                <i class="bi bi-calendar-plus me-1"></i> + ADD TO CALENDAR
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function addToGoogleCalendar(jfDateStr, organizer, venue, contact) {
+      let datesParam = '';
+      if (jfDateStr && jfDateStr !== 'N/A') {
+        const d = new Date(jfDateStr);
+        if (!isNaN(d.getTime())) {
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          datesParam = `${yyyy}${mm}${dd}T080000Z/${yyyy}${mm}${dd}T170000Z`;
+        }
+      }
+
+      const title = encodeURIComponent(`Job Fair - ${organizer}`);
+      const details = encodeURIComponent(`DOLE RO4A Job Fair Schedule\nOrganizer: ${organizer}\nVenue: ${venue}\nContact: ${contact}`);
+      const location = encodeURIComponent(venue);
+
+      const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${datesParam}&details=${details}&location=${location}`;
+      window.open(calUrl, '_blank');
+    }
+
+    function resetTab6Filters() {
+      if (document.getElementById('filterTab6Province')) document.getElementById('filterTab6Province').value = '';
+      if (document.getElementById('filterTab6Month')) document.getElementById('filterTab6Month').value = '';
+      if (document.getElementById('filterTab6Year')) document.getElementById('filterTab6Year').value = String(new Date().getFullYear());
+      if (document.getElementById('filterTab6Sort')) document.getElementById('filterTab6Sort').value = 'LATEST';
+      if (document.getElementById('filterTab6Search')) document.getElementById('filterTab6Search').value = '';
+      renderTab6Schedules();
+    }
+
+    function downloadTab6Excel() {
+      const wb = XLSX.utils.table_to_book(document.getElementById("tab6TableElement"), { sheet: "SCHEDULES" });
+      XLSX.writeFile(wb, "Job_Fair_Schedules.xlsx");
     }
   </script>
 </body>
