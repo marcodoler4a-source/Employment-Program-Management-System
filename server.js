@@ -31,17 +31,19 @@ app.use((req, res, next) => {
 });
 
 const PAGE_CONFIG = {
-  'login':           { files: ['login', 'Login'], title: 'DOLE Employment Program | CALABARZON' },
-  'dashboard':       { files: ['Dashboard', 'dashboard', 'GIP', 'gip', 'Index'], title: 'Dashboard | CALABARZON' },
-  'mer':             { files: ['mer', 'Mer', 'MER'], title: 'JF MER Summary and Reports | CALABARZON' },
-  'jfencoding':      { files: ['JFEncoding', 'JfEncoding', 'jfencoding', 'Encoding', 'encoding', 'index', 'Index'], title: 'JF Encoding | CALABARZON' },
-  'nationalreports': { files: ['NationalReports', 'nationalreports', 'National_Reports'], title: 'Job Fair Reports | CALABARZON' },
-  'bleforms':        { files: ['BleForms', 'bleforms', 'BLEForms'], title: 'BleForms | CALABARZON' },
-  'sprs':            { files: ['BleForms', 'bleforms', 'SPRS', 'sprs'], title: 'SPRS / BleForms | CALABARZON' },
-  'index':           { files: ['Index', 'index', 'jobfairs_index', 'JobFairs', 'jobfairs'], title: 'Job Fairs System | CALABARZON' },
-  'gip':             { files: ['GIP', 'gip', 'Gip', 'Index', 'index'], title: 'GIP | CALABARZON' },
-  'spes':            { files: ['SPES', 'spes', 'Index', 'index'], title: 'SPES | CALABARZON' },
-  'jobfairs':        { files: ['jobfairs_index', 'JobFairs', 'Index', 'index'], title: 'Job Fairs System | CALABARZON' }
+  'login':                { files: ['login', 'Login'], title: 'DOLE Employment Program | CALABARZON' },
+  'dashboard':            { files: ['Dashboard', 'dashboard', 'GIP', 'gip', 'Index'], title: 'Dashboard | CALABARZON' },
+  'mer':                  { files: ['mer', 'Mer', 'MER'], title: 'JF MER Summary and Reports | CALABARZON' },
+  'jfencoding':           { files: ['JFEncoding', 'JfEncoding', 'jfencoding', 'Encoding', 'encoding', 'index', 'Index'], title: 'JF Encoding | CALABARZON' },
+  'nationalreports':      { files: ['NationalReports', 'nationalreports', 'National_Reports', 'NationalReports.html', 'nationalreports.html'], title: 'Job Fair Reports | CALABARZON' },
+  'nationalreports.html': { files: ['NationalReports', 'nationalreports', 'National_Reports', 'NationalReports.html', 'nationalreports.html'], title: 'Job Fair Reports | CALABARZON' },
+  'national_reports':     { files: ['NationalReports', 'nationalreports', 'National_Reports', 'NationalReports.html', 'nationalreports.html'], title: 'Job Fair Reports | CALABARZON' },
+  'bleforms':             { files: ['BleForms', 'bleforms', 'BLEForms'], title: 'BleForms | CALABARZON' },
+  'sprs':                 { files: ['BleForms', 'bleforms', 'SPRS', 'sprs'], title: 'SPRS / BleForms | CALABARZON' },
+  'index':                { files: ['Index', 'index', 'jobfairs_index', 'JobFairs', 'jobfairs'], title: 'Job Fairs System | CALABARZON' },
+  'gip':                  { files: ['GIP', 'gip', 'Gip', 'Index', 'index'], title: 'GIP | CALABARZON' },
+  'spes':                 { files: ['SPES', 'spes', 'Index', 'index'], title: 'SPES | CALABARZON' },
+  'jobfairs':             { files: ['jobfairs_index', 'JobFairs', 'Index', 'index'], title: 'Job Fairs System | CALABARZON' }
 };
 
 const VIEWS_DIR = path.join(__dirname, 'public');
@@ -197,11 +199,15 @@ function handleDoGet(req, res) {
 // Route mapping for GET ?page=...
 app.get('/', handleDoGet);
 
-// Route mapping for clean URLs like /login, /dashboard, /jfencoding
+// Route mapping for clean URLs like /login, /dashboard, /jfencoding, /NationalReports
 app.get('/:pageName', (req, res, next) => {
-  const pageName = req.params.pageName.toLowerCase();
-  if (PAGE_CONFIG[pageName]) {
-    req.query.page = pageName;
+  let rawPage = req.params.pageName || '';
+  let cleanPage = rawPage.toLowerCase();
+  if (cleanPage.endsWith('.html')) {
+    cleanPage = cleanPage.substring(0, cleanPage.length - 5);
+  }
+  if (PAGE_CONFIG[cleanPage] || PAGE_CONFIG[rawPage.toLowerCase()]) {
+    req.query.page = cleanPage;
     return handleDoGet(req, res);
   }
   next();
