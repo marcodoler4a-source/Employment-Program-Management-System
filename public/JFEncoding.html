@@ -376,7 +376,7 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">DATE OF JOB FAIR <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateOfJobFair" required onchange="calculateCalculatedFields()">
+                  <input type="date" class="form-control text-muted" id="dateOfJobFair" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">JOB FAIR VENUE <span>*</span></label>
@@ -438,15 +438,15 @@
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">DATE FILED <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateFiled" required onchange="calculateCalculatedFields()">
+                  <input type="date" class="form-control text-muted" id="dateFiled" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">DATE ISSUED <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateIssued" required onchange="calculateCalculatedFields()">
+                  <input type="date" class="form-control text-muted" id="dateIssued" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">DATE OF ENCODING <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateOfEncoding" required onchange="calculateCalculatedFields()">
+                  <input type="date" class="form-control text-muted" id="dateOfEncoding" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
                 </div>
               </div>
 
@@ -469,7 +469,7 @@
                 
                 <div class="col-12 mt-3 d-flex gap-2">
                   <button type="submit" class="btn btn-success w-75 py-2 fw-bold shadow-sm" id="submitBtn">SUBMIT RECORD</button>
-                  <button type="reset" class="btn btn-light border w-25 py-2 text-secondary fw-bold" onclick="setTimeout(calculateCalculatedFields, 100)">CLEAR FORM</button>
+                  <button type="reset" class="btn btn-light border w-25 py-2 text-secondary fw-bold" onclick="resetFormWithDate()">CLEAR FORM</button>
                 </div>
               </div>
             </form>
@@ -661,6 +661,14 @@
       calculateCalculatedFields();
     });
 
+    function resetFormWithDate() {
+      setTimeout(() => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('dateOfEncoding').value = todayStr;
+        calculateCalculatedFields();
+      }, 100);
+    }
+
     function initLoggedInUser() {
       const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser');
       let name = "DOLE REGION IV-A";
@@ -777,8 +785,8 @@
 
       // 1. Turnaround Time: Date Filed vs Date Issued less Sundays and Holidays
       if (dateFiledVal && dateIssuedVal) {
-        const startDate = new Date(dateFiledVal);
-        const endDate = new Date(dateIssuedVal);
+        const startDate = new Date(dateFiledVal + 'T00:00:00');
+        const endDate = new Date(dateIssuedVal + 'T00:00:00');
         
         if (endDate >= startDate) {
           let workingDays = 0;
@@ -806,8 +814,8 @@
 
       // 2. No. Days Filed before JF: Job Fair Date minus Date Filed
       if (dateOfJobFairVal && dateFiledVal) {
-        const jfDate = new Date(dateOfJobFairVal);
-        const filedDate = new Date(dateFiledVal);
+        const jfDate = new Date(dateOfJobFairVal + 'T00:00:00');
+        const filedDate = new Date(dateFiledVal + 'T00:00:00');
         const diffDays = Math.round((jfDate - filedDate) / (1000 * 60 * 60 * 24));
         document.getElementById('daysFiledBeforeJF').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
       } else {
@@ -816,8 +824,8 @@
 
       // 3. No. Days Reported: Date of Encoding minus Date Filed
       if (dateOfEncodingVal && dateFiledVal) {
-        const encDate = new Date(dateOfEncodingVal);
-        const filedDate = new Date(dateFiledVal);
+        const encDate = new Date(dateOfEncodingVal + 'T00:00:00');
+        const filedDate = new Date(dateFiledVal + 'T00:00:00');
         const diffDays = Math.round((encDate - filedDate) / (1000 * 60 * 60 * 24));
         document.getElementById('daysReported').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
       } else {
@@ -828,6 +836,10 @@
     // API: Submit New Record (Tab 1)
     async function handleFormSubmit(event) {
       event.preventDefault();
+
+      // Explicitly recalculate before gathering submit payload
+      calculateCalculatedFields();
+
       const submitBtn = document.getElementById('submitBtn');
       submitBtn.disabled = true;
       submitBtn.innerText = 'SUBMITTING...';
@@ -839,6 +851,11 @@
       
       let fullDocumentNo = isPermit ? `${prefix}-${middle}-${digits}` : `${prefix}-${middle}-${document.getElementById('numExtra').value}-${digits}`;
 
+      const dateEncVal = document.getElementById('dateOfEncoding').value;
+      const turnTimeVal = document.getElementById('turnaroundTime').value;
+      const daysBeforeVal = document.getElementById('daysFiledBeforeJF').value;
+      const daysRepVal = document.getElementById('daysReported').value;
+
       const formData = {
         reportingPeriod: document.getElementById('reportingPeriod').value,
         fieldOffice: document.getElementById('fieldOffice').value,
@@ -847,15 +864,27 @@
         dateOfJobFair: document.getElementById('dateOfJobFair').value,
         dateFiled: document.getElementById('dateFiled').value,
         dateIssued: document.getElementById('dateIssued').value,
-        dateOfEncoding: document.getElementById('dateOfEncoding').value,
-        turnaroundTime: document.getElementById('turnaroundTime').value,
-        daysFiledBeforeJF: document.getElementById('daysFiledBeforeJF').value,
-        daysReported: document.getElementById('daysReported').value,
+        dateOfEncoding: dateEncVal,
+        turnaroundTime: turnTimeVal,
+        daysFiledBeforeJF: daysBeforeVal,
+        daysReported: daysRepVal,
         jobFairVenue: document.getElementById('jobFairVenue').value,
-        documentApplied: document.querySelector('input[name="documentApplied"]:checked').value,
-        actionTaken: document.querySelector('input[name="actionTaken"]:checked').value,
+        documentApplied: document.querySelector('input[name="documentApplied"]:checked') ? document.querySelector('input[name="documentApplied"]:checked').value : '',
+        actionTaken: document.querySelector('input[name="actionTaken"]:checked') ? document.querySelector('input[name="actionTaken"]:checked').value : '',
         disapprovedReason: document.getElementById('disapprovedReason').value,
-        documentNumber: fullDocumentNo
+        documentNumber: fullDocumentNo,
+
+        // Key aliases for backend/Google Sheets column header compatibility
+        "DATE OF ENCODING": dateEncVal,
+        "TURNAROUND TIME": turnTimeVal,
+        "DAYS FILED BEFORE JF": daysBeforeVal,
+        "NO. DAYS FILED BEFORE JF": daysBeforeVal,
+        "DAYS REPORTED": daysRepVal,
+        "NO. DAYS REPORTED": daysRepVal,
+        "date_of_encoding": dateEncVal,
+        "turnaround_time": turnTimeVal,
+        "days_filed_before_jf": daysBeforeVal,
+        "days_reported": daysRepVal
       };
 
       try {
@@ -869,9 +898,7 @@
         if (data.status === 'success' || data.success) {
           showScreenAlert(data.message || 'RECORD SUCCESSFULLY SUBMITTED', 'success');
           document.getElementById('encodingForm').reset();
-          const todayStr = new Date().toISOString().split('T')[0];
-          document.getElementById('dateOfEncoding').value = todayStr;
-          calculateCalculatedFields();
+          resetFormWithDate();
           fetchAndRenderTab3Data();
           loadSummaryMatrixData();
         } else {
@@ -945,14 +972,20 @@
       }
     }
 
-    // RENDER ALL COLUMNS IN TAB 3 (DATABASE)
+    // RENDER ALL COLUMNS IN TAB 3 (DATABASE) WITH FALLBACK KEY MAPPING
     function renderTab3Table() {
       const tbody = document.getElementById('tab3DataTableBody');
       if (!tab3DetailedRecords || tab3DetailedRecords.length === 0) {
         tbody.innerHTML = `<tr><td colspan="18" class="text-center text-muted">NO RECORDS FOUND.</td></tr>`;
         return;
       }
-      tbody.innerHTML = tab3DetailedRecords.map(r => `
+      tbody.innerHTML = tab3DetailedRecords.map(r => {
+        const dateEnc = r.dateOfEncoding || r['DATE OF ENCODING'] || r['Date of Encoding'] || r['date_of_encoding'] || '';
+        const turnaround = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
+        const daysBefore = r.daysFiledBeforeJF || r['DAYS FILED BEFORE JF'] || r['NO. DAYS FILED BEFORE JF'] || r['Days Filed Before JF'] || r['days_filed_before_jf'] || '';
+        const daysRep = r.daysReported || r['DAYS REPORTED'] || r['NO. DAYS REPORTED'] || r['Days Reported'] || r['days_reported'] || '';
+
+        return `
         <tr>
           <td>
             <button class="btn btn-warning btn-sm py-0" onclick="editRecord(${r._rowIndex || r.rowIndex})">EDIT</button>
@@ -969,14 +1002,15 @@
           <td>${r.dateOfJobFair || r['DATE OF JOB FAIR'] || ''}</td>
           <td>${r.dateFiled || r['DATE FILED'] || ''}</td>
           <td>${r.dateIssued || r['DATE ISSUED'] || ''}</td>
-          <td>${r.dateOfEncoding || r['DATE OF ENCODING'] || ''}</td>
-          <td class="fw-bold text-primary">${r.turnaroundTime || r['TURNAROUND TIME'] || ''}</td>
-          <td class="fw-bold text-success">${r.daysFiledBeforeJF || r['DAYS FILED BEFORE JF'] || ''}</td>
-          <td class="fw-bold text-info">${r.daysReported || r['DAYS REPORTED'] || ''}</td>
-          <td><span class="badge ${(r.actionTaken || r['ACTION TAKEN']) === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${r.actionTaken || r['ACTION TAKEN']}</span></td>
+          <td>${dateEnc}</td>
+          <td class="fw-bold text-primary">${turnaround}</td>
+          <td class="fw-bold text-success">${daysBefore}</td>
+          <td class="fw-bold text-info">${daysRep}</td>
+          <td><span class="badge ${(r.actionTaken || r['ACTION TAKEN']) === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${r.actionTaken || r['ACTION TAKEN'] || ''}</span></td>
           <td>${r.disapprovedReason || r['REASON IF DISAPPROVED'] || 'N/A'}</td>
         </tr>
-      `).join('');
+        `;
+      }).join('');
     }
 
     async function executeDeleteRecord(rowIndex) {
