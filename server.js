@@ -260,25 +260,34 @@ app.post('/api/jf/encode', (req, res) => {
 app.post('/api/jf/update-record', (req, res) => {
   try {
     const {
-      rowIndex, sponsor, jobFairVenue, dateOfJobFair, dateFiled,
-      dateReceived, dateIssued, dateOfEncoding, turnaroundTime,
-      daysFiledBeforeJF, daysReported, documentNumber, actionTaken, disapprovedReason
+      rowIndex, reportingPeriod, fieldOffice, sponsor, contactNumber,
+      jobFairVenue, dateOfJobFair, dateFiled, dateReceived, dateIssued,
+      dateOfEncoding, actionTaken, disapprovedReason, documentNumber,
+      turnaroundTime, daysFiledBeforeJF, daysReported
     } = req.body;
-    let records = getJfRecords();
 
+    let records = getJfRecords();
     const idx = records.findIndex(r => r.rowIndex == rowIndex);
+
     if (idx !== -1) {
+      if (reportingPeriod !== undefined) records[idx].reportingPeriod = reportingPeriod;
+      if (fieldOffice !== undefined) records[idx].fieldOffice = fieldOffice;
       if (sponsor !== undefined) records[idx].sponsor = sponsor;
+      if (contactNumber !== undefined) records[idx].contactNumber = contactNumber;
       if (jobFairVenue !== undefined) records[idx].jobFairVenue = jobFairVenue;
       if (dateOfJobFair !== undefined) records[idx].dateOfJobFair = dateOfJobFair;
       if (dateFiled !== undefined) records[idx].dateFiled = dateFiled;
       if (dateReceived !== undefined) records[idx].dateReceived = dateReceived;
       if (dateIssued !== undefined) records[idx].dateIssued = dateIssued;
-      
+
       if (dateOfEncoding !== undefined) {
         records[idx].dateOfEncoding = dateOfEncoding;
         records[idx]["DATE OF ENCODING"] = dateOfEncoding;
       }
+      if (actionTaken !== undefined) records[idx].actionTaken = actionTaken;
+      if (disapprovedReason !== undefined) records[idx].disapprovedReason = disapprovedReason;
+      if (documentNumber !== undefined) records[idx].documentNumber = documentNumber;
+
       if (turnaroundTime !== undefined) {
         records[idx].turnaroundTime = turnaroundTime;
         records[idx]["TURNAROUND TIME"] = turnaroundTime;
@@ -293,10 +302,6 @@ app.post('/api/jf/update-record', (req, res) => {
         records[idx]["DAYS REPORTED"] = daysReported;
         records[idx]["NO. DAYS REPORTED"] = daysReported;
       }
-
-      if (documentNumber !== undefined) records[idx].documentNumber = documentNumber;
-      if (actionTaken !== undefined) records[idx].actionTaken = actionTaken;
-      if (disapprovedReason !== undefined) records[idx].disapprovedReason = disapprovedReason;
 
       saveJfRecords(records);
       return res.json({ success: true, message: "Record updated successfully!" });
