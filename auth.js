@@ -1,0 +1,190 @@
+// ==========================================
+// PASSWORD STORAGE & AUTHENTICATION MODULE
+// ==========================================
+
+const fs = require('fs');
+const path = require('path');
+const {
+  getAllUsersMap,
+  normalizeLoginUsername,
+  userExists,
+  getProvinceForMunicipality
+} = require('./users');
+
+const DB_PATH = path.join(__dirname, 'passwords.json');
+
+// Reads persistent password overrides (replaces PropertiesService)
+function getStoredProperties() {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    }
+  } catch (err) {
+    console.error("Error reading password database:", err.message);
+  }
+  return {};
+}
+
+// Saves persistent password overrides
+function saveStoredProperties(props) {
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(props, null, 2), 'utf8');
+  } catch (err) {
+    console.error("Error saving password database:", err.message);
+  }
+}
+
+function getPasswordPropertyKey(cleanUser) {
+  return "USER_PASSWORD_" + String(cleanUser || "").trim().toUpperCase();
+}
+
+function getSavedUserPassword(cleanUser) {
+  const properties = getStoredProperties();
+  const key = getPasswordPropertyKey(cleanUser);
+  return properties[key] !== undefined ? properties[key] : null;
+}
+
+function getUserPassword(cleanUser) {
+  const userKey = normalizeLoginUsername(cleanUser);
+  if (!userKey) return null;
+
+  const savedPassword = getSavedUserPassword(userKey);
+  if (savedPassword !== null && savedPassword !== "") {
+    return savedPassword;
+  }
+
+  if (userKey === "DOLE4A") {
+    return "dole4a@2026";
+  }
+
+  const usersMap = getAllUsersMap();
+  return usersMap[userKey] || null;
+}
+
+function authenticateUser(username, password) {
+  const cleanUser = normalizeLoginUsername(username);
+  const cleanPass = String(password || "");
+
+  if (!userExists(cleanUser)) {
+    return {
+      success: false,
+      message: "Invalid Username or Password. Please try again."
+    };
+  }
+
+  const correctPassword = getUserPassword(cleanUser);
+  if (correctPassword !== cleanPass) {
+    return {
+      success: false,
+      message: "Invalid Username or Password. Please try again."
+    };
+  }
+
+  if (cleanUser === "DOLE4A") {
+    return {
+      success: true,
+      role: "admin",
+      province: "ALL",
+      municipality: "Administrator"
+    };
+  }
+
+  const userProvince = getProvinceForMunicipality(cleanUser);
+  return {
+    success: true,
+    role: "user",
+    province: userProvince,
+    municipality: cleanUser
+  };
+}
+
+function changeUserPassword(username, currentPassword, newPassword) {
+  try {
+    const cleanUser = normalizeLoginUsername(username);
+    const cleanCurrentPassword = String(currentPassword || "").trim();
+    const cleanNewPassword = String(newPassword || "").trim();
+
+    if (!cleanUser) {
+      return { success: false, message: "Please enter your username." };
+    }
+    if (!cleanCurrentPassword) {
+      return { success: false, message: "Please enter your current password." };
+    }
+    if (!cleanNewPassword) {
+      return { success: false, message: "Please enter a new password." };
+    }
+    if (cleanNewPassword.length < 6) {
+      return { success: false, message: "Your new password must be at least 6 characters." };
+    }
+
+    if (cleanUser !== "DOLE4A") {
+      const usersMap = getAllUsersMap();
+      if (!usersMap[cleanUser]) {
+        return { success: false, message: "Username not found." };
+      }
+    }
+
+    const correctPassword = getUserPassword(cleanUser);
+    if (!correctPassword || cleanCurrentPassword !== correctPassword) {
+      return { success: false, message: "Your current password is incorrect." };
+    }
+
+    if (cleanNewPassword === correctPassword) {
+      return {
+        success: false,
+        message: "Your new password must be different from your current password."
+      };
+    }
+
+    const props = getStoredProperties();
+    props[getPasswordPropertyKey(cleanUser)] = cleanNewPassword;
+    saveStoredProperties(props);
+
+    return {
+      success: true,
+      message: "Your password has been changed successfully."
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Unable to change password: " + error.message
+    };
+  }
+}
+
+function resetUserPassword(username) {
+  try {
+    const cleanUser = normalizeLoginUsername(username);
+    if (!cleanUser) {
+      return { success: false, message: "Username is required." };
+    }
+
+    if (cleanUser !== "DOLE4A") {
+      const usersMap = getAllUsersMap();
+      if (!usersMap[cleanUser]) {
+        return { success: false, message: "Username not found." };
+      }
+    }
+
+    const props = getStoredProperties();
+    delete props[getPasswordPropertyKey(cleanUser)];
+    saveStoredProperties(props);
+
+    return {
+      success: true,
+      message: "Password reset successfully."
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Unable to reset password: " + error.message
+    };
+  }
+}
+
+module.exports = {
+  getUserPassword,
+  authenticateUser,
+  changeUserPassword,
+  resetUserPassword
+};
