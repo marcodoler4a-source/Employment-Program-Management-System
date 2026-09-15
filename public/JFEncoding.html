@@ -388,7 +388,7 @@
               
               <hr class="section-divider">
               <div class="section-badge">SECTION 2 OF 3</div>
-              <div class="form-title">APPLICATION DETAILS</div>
+              <div class="form-title">APPLICATION DETAILS & PROOF ATTACHMENTS</div>
               <div class="row g-2">
                 <div class="col-md-6">
                   <label class="form-label">JOB FAIR DOCUMENT APPLIED <span>*</span></label>
@@ -450,6 +450,16 @@
                   <label class="form-label">DATE OF ENCODING <span>*</span></label>
                   <input type="date" class="form-control text-muted" id="dateOfEncoding" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
                 </div>
+
+                <!-- PDF / PROOF UPLOAD FIELDS -->
+                <div class="col-md-6 mt-2">
+                  <label class="form-label">UPLOAD PROOF OF DATE APPLICATION RECEIVED <small class="text-muted">(PDF/IMAGE)</small></label>
+                  <input type="file" class="form-control" id="proofReceivedFile" accept=".pdf,image/*">
+                </div>
+                <div class="col-md-6 mt-2">
+                  <label class="form-label">UPLOAD PROOF OF DATE JFP/JFC RELEASED <small class="text-muted">(PDF/IMAGE)</small></label>
+                  <input type="file" class="form-control" id="proofReleasedFile" accept=".pdf,image/*">
+                </div>
               </div>
 
               <hr class="section-divider">
@@ -510,7 +520,7 @@
           </div>
         </div>
 
-        <!-- TAB 3: Database Report (LIVE GOOGLE SHEETS CONTENT INTEGRATED DIRECTLY) -->
+        <!-- TAB 3: Database Report (WITH FILTER DROPDOWNS & PROOF COLUMNS) -->
         <div class="tab-pane fade" id="content-3" role="tabpanel">
           <div class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -519,6 +529,71 @@
                 <i class="bi bi-download me-1"></i> DOWNLOAD EXCEL
               </button>
             </div>
+
+            <!-- INTERACTIVE DATABASE FILTERS -->
+            <div class="bg-light p-3 rounded mb-3 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">PROVINCE</label>
+                  <select class="form-select form-select-sm" id="filterProvince" onchange="filterTab3Table()">
+                    <option value="">ALL PROVINCES</option>
+                    <option value="BATANGAS">BATANGAS</option>
+                    <option value="CAVITE">CAVITE</option>
+                    <option value="LAGUNA">LAGUNA</option>
+                    <option value="QUEZON">QUEZON</option>
+                    <option value="RIZAL">RIZAL</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">MONTH</label>
+                  <select class="form-select form-select-sm" id="filterMonth" onchange="filterTab3Table()">
+                    <option value="">ALL MONTHS</option>
+                    <option value="JANUARY">JANUARY</option>
+                    <option value="FEBRUARY">FEBRUARY</option>
+                    <option value="MARCH">MARCH</option>
+                    <option value="APRIL">APRIL</option>
+                    <option value="MAY">MAY</option>
+                    <option value="JUNE">JUNE</option>
+                    <option value="JULY">JULY</option>
+                    <option value="AUGUST">AUGUST</option>
+                    <option value="SEPTEMBER">SEPTEMBER</option>
+                    <option value="OCTOBER">OCTOBER</option>
+                    <option value="NOVEMBER">NOVEMBER</option>
+                    <option value="DECEMBER">DECEMBER</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">YEAR</label>
+                  <select class="form-select form-select-sm" id="filterYear" onchange="filterTab3Table()">
+                    <option value="">ALL YEARS</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">DOCUMENT</label>
+                  <select class="form-select form-select-sm" id="filterDocument" onchange="filterTab3Table()">
+                    <option value="">ALL DOCUMENTS</option>
+                    <option value="PERMIT">JOB FAIR PERMIT</option>
+                    <option value="CLEARANCE">JOB FAIR CLEARANCE</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">ACTION TAKEN</label>
+                  <select class="form-select form-select-sm" id="filterAction" onchange="filterTab3Table()">
+                    <option value="">ALL ACTIONS</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="DISAPPROVED">DISAPPROVED</option>
+                  </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                  <button class="btn btn-outline-secondary btn-sm w-100 fw-bold" onclick="resetTab3Filters()">RESET FILTERS</button>
+                </div>
+              </div>
+            </div>
+
             <div class="table-responsive">
               <table class="table table-bordered table-striped align-middle text-center" id="tab3TableElement">
                 <thead class="table-light text-nowrap">
@@ -541,10 +616,12 @@
                     <th>DAYS REPORTED</th>
                     <th>ACTION TAKEN</th>
                     <th>REASON IF DISAPPROVED</th>
+                    <th>PROOF RECEIVED</th>
+                    <th>PROOF RELEASED</th>
                   </tr>
                 </thead>
                 <tbody id="tab3DataTableBody">
-                  <tr><td colspan="18" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>LOADING LIVE DATABASE RECORDS...</td></tr>
+                  <tr><td colspan="20" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>LOADING LIVE DATABASE RECORDS...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -788,13 +865,11 @@
     window.addEventListener('DOMContentLoaded', function() {
       initLoggedInUser();
       checkKfsTabVisibility();
-      loadSummaryMatrixData();
       fetchAndRenderTab3Data();
 
       const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
       document.getElementById('reportingPeriod').value = months[new Date().getMonth()];
 
-      // Set default encoding date to Today (YYYY-MM-DD)
       const todayStr = new Date().toISOString().split('T')[0];
       document.getElementById('dateOfEncoding').value = todayStr;
 
@@ -970,15 +1045,33 @@
       document.getElementById('disapprovedReason').value = isDisapproved ? "" : "N/A";
     }
 
+    // HELPER: READ FILE AS DATA URL / BASE64
+    function readFileAsDataURL(fileInput) {
+      return new Promise((resolve) => {
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+          resolve('');
+          return;
+        }
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          resolve(e.target.result);
+        };
+        reader.onerror = function() {
+          resolve(file.name);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     // COMPUTED METRICS LOGIC (ENCODING FORM)
-    // TURNAROUND TIME MINUSES SATURDAYS (6), SUNDAYS (0), AND PHILIPPINE HOLIDAYS
+    // MINUSES SATURDAYS (6), SUNDAYS (0), AND PHILIPPINE HOLIDAYS
     function calculateCalculatedFields() {
       const dateFiledVal = document.getElementById('dateFiled').value;
       const dateIssuedVal = document.getElementById('dateIssued').value;
       const dateOfJobFairVal = document.getElementById('dateOfJobFair').value;
       const dateOfEncodingVal = document.getElementById('dateOfEncoding').value;
 
-      // 1. Turnaround Time
       if (dateFiledVal && dateIssuedVal) {
         const startDate = new Date(dateFiledVal + 'T00:00:00');
         const endDate = new Date(dateIssuedVal + 'T00:00:00');
@@ -1006,7 +1099,6 @@
         document.getElementById('turnaroundTime').value = `0 DAY(S)`;
       }
 
-      // 2. Days Filed Before JF
       if (dateOfJobFairVal && dateFiledVal) {
         const jfDate = new Date(dateOfJobFairVal + 'T00:00:00');
         const filedDate = new Date(dateFiledVal + 'T00:00:00');
@@ -1016,7 +1108,6 @@
         document.getElementById('daysFiledBeforeJF').value = `0 DAY(S)`;
       }
 
-      // 3. Days Reported
       if (dateOfEncodingVal && dateFiledVal) {
         const encDate = new Date(dateOfEncodingVal + 'T00:00:00');
         const filedDate = new Date(dateFiledVal + 'T00:00:00');
@@ -1048,6 +1139,9 @@
       const daysBeforeVal = document.getElementById('daysFiledBeforeJF').value;
       const daysRepVal = document.getElementById('daysReported').value;
 
+      const proofRecUrl = await readFileAsDataURL(document.getElementById('proofReceivedFile'));
+      const proofRelUrl = await readFileAsDataURL(document.getElementById('proofReleasedFile'));
+
       const formData = {
         reportingPeriod: document.getElementById('reportingPeriod').value,
         fieldOffice: document.getElementById('fieldOffice').value,
@@ -1065,6 +1159,8 @@
         actionTaken: document.querySelector('input[name="actionTaken"]:checked') ? document.querySelector('input[name="actionTaken"]:checked').value : '',
         disapprovedReason: document.getElementById('disapprovedReason').value,
         documentNumber: fullDocumentNo,
+        proofReceivedUrl: proofRecUrl,
+        proofReleasedUrl: proofRelUrl,
 
         "DATE OF ENCODING": dateEncVal,
         "TURNAROUND TIME": turnTimeVal,
@@ -1091,7 +1187,6 @@
           document.getElementById('encodingForm').reset();
           resetFormWithDate();
           fetchAndRenderTab3Data();
-          loadSummaryMatrixData();
         } else {
           showScreenAlert(data.message || 'SUBMISSION FAILED', 'danger');
         }
@@ -1103,18 +1198,7 @@
       }
     }
 
-    // API: Load Summary (Tab 2)
-    async function loadSummaryMatrixData() {
-      try {
-        const res = await fetch('/api/jf/records');
-        const data = await res.json();
-        rawSheetRecords = data.records || data || [];
-        renderSummaryTable(rawSheetRecords);
-      } catch (err) {
-        console.error("Summary fetch error:", err);
-      }
-    }
-
+    // ACCURATELY CALCULATE SUMMARY TABLE (TAB 2) FOR ALL RECORDS IN DATABASE
     function renderSummaryTable(records) {
       const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
       const provinces = ["BATANGAS", "CAVITE", "LAGUNA", "QUEZON", "RIZAL"];
@@ -1125,29 +1209,57 @@
         provinces.forEach(p => matrix[m][p] = { permit: 0, clearance: 0 });
       });
 
-      records.forEach(r => {
-        const m = months.find(m => (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || "").toUpperCase().includes(m));
-        const p = provinces.find(p => (r.province || r.fieldOffice || r['FIELD OFFICE'] || "").toUpperCase().includes(p));
-        const doc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || "").toUpperCase();
+      (records || []).forEach(r => {
+        const rawM = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || r['MONTH'] || "").toUpperCase();
+        const rawP = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || "").toUpperCase();
+        const rawDoc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || "").toUpperCase();
+
+        const m = months.find(month => rawM.includes(month));
+        const p = provinces.find(prov => rawP.includes(prov));
 
         if (m && p) {
-          if (doc.includes("PERMIT")) matrix[m][p].permit++;
-          else if (doc.includes("CLEARANCE")) matrix[m][p].clearance++;
+          if (rawDoc.includes("PERMIT") || rawDoc.includes("JFP")) {
+            matrix[m][p].permit++;
+          } else if (rawDoc.includes("CLEARANCE") || rawDoc.includes("JFC")) {
+            matrix[m][p].clearance++;
+          }
         }
       });
 
       let tbody = document.getElementById('summaryTableBody');
       tbody.innerHTML = '';
+
+      let colTotals = {};
+      provinces.forEach(p => colTotals[p] = { permit: 0, clearance: 0 });
+      let grandPermit = 0, grandClearance = 0;
+
       months.forEach(m => {
         let rowJfp = 0, rowJfc = 0;
         let cells = '';
         provinces.forEach(p => {
-          rowJfp += matrix[m][p].permit;
-          rowJfc += matrix[m][p].clearance;
-          cells += `<td>${matrix[m][p].permit || '-'}</td><td>${matrix[m][p].clearance || '-'}</td>`;
+          const permitCount = matrix[m][p].permit;
+          const clearanceCount = matrix[m][p].clearance;
+          rowJfp += permitCount;
+          rowJfc += clearanceCount;
+
+          colTotals[p].permit += permitCount;
+          colTotals[p].clearance += clearanceCount;
+
+          cells += `<td>${permitCount || '-'}</td><td>${clearanceCount || '-'}</td>`;
         });
-        tbody.innerHTML += `<tr><td class="fw-bold">${m}</td>${cells}<td class="fw-bold table-warning">${rowJfp || '-'}</td><td class="fw-bold table-info">${rowJfc || '-'}</td></tr>`;
+
+        grandPermit += rowJfp;
+        grandClearance += rowJfc;
+
+        tbody.innerHTML += `<tr><td class="fw-bold text-start">${m}</td>${cells}<td class="fw-bold table-warning">${rowJfp || '-'}</td><td class="fw-bold table-info">${rowJfc || '-'}</td></tr>`;
       });
+
+      let tfoot = document.getElementById('summaryTableFoot');
+      let footCells = '';
+      provinces.forEach(p => {
+        footCells += `<td>${colTotals[p].permit || 0}</td><td>${colTotals[p].clearance || 0}</td>`;
+      });
+      tfoot.innerHTML = `<tr class="table-dark text-white fw-bold"><td class="text-start">TOTAL</td>${footCells}<td class="bg-warning text-dark">${grandPermit}</td><td class="bg-info text-dark">${grandClearance}</td></tr>`;
     }
 
     // PARSE LIVE GOOGLE SHEET CSV INTO RECORD OBJECTS
@@ -1203,6 +1315,8 @@
         record.daysReported = record['DAYS REPORTED'] || record['NO. DAYS REPORTED'] || '';
         record.actionTaken = record['ACTION TAKEN'] || 'APPROVED';
         record.disapprovedReason = record['REASON IF DISAPPROVED'] || 'N/A';
+        record.proofReceivedUrl = record['PROOF RECEIVED'] || record['PROOF_RECEIVED'] || '';
+        record.proofReleasedUrl = record['PROOF RELEASED'] || record['PROOF_RELEASED'] || '';
 
         records.push(record);
       }
@@ -1225,7 +1339,7 @@
     async function fetchAndRenderTab3Data() {
       try {
         const tbody = document.getElementById('tab3DataTableBody');
-        tbody.innerHTML = `<tr><td colspan="18" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>FETCHING LIVE GOOGLE SHEET & DATABASE RECORDS...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="20" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>FETCHING LIVE GOOGLE SHEET & DATABASE RECORDS...</td></tr>`;
 
         let liveSheetRecords = await fetchGoogleSheetRecords();
         let localRecords = [];
@@ -1250,6 +1364,7 @@
         }
 
         renderTab3Table();
+        renderSummaryTable(tab3DetailedRecords);
         renderTab6Schedules();
         refreshTab4Metrics();
       } catch (err) {
@@ -1257,14 +1372,54 @@
       }
     }
 
-    // RENDER ALL 18 COLUMNS IN TAB 3 (DATABASE) - MATCHING GOOGLE SHEETS STRUCTURE EXACTLY
+    // TAB 3 FILTERING FUNCTION
+    function filterTab3Table() {
+      const fProvince = document.getElementById('filterProvince').value.toUpperCase();
+      const fMonth = document.getElementById('filterMonth').value.toUpperCase();
+      const fYear = document.getElementById('filterYear').value.toUpperCase();
+      const fDocument = document.getElementById('filterDocument').value.toUpperCase();
+      const fAction = document.getElementById('filterAction').value.toUpperCase();
+
+      const filtered = tab3DetailedRecords.filter(r => {
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const month = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || r['MONTH'] || '').toUpperCase();
+        const year = (r.year || r['YEAR'] || '').toUpperCase();
+        const doc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        const action = (r.actionTaken || r['ACTION TAKEN'] || '').toUpperCase();
+
+        if (fProvince && !province.includes(fProvince)) return false;
+        if (fMonth && !month.includes(fMonth)) return false;
+        if (fYear && !year.includes(fYear)) return false;
+        if (fDocument && !doc.includes(fDocument)) return false;
+        if (fAction && !action.includes(fAction)) return false;
+
+        return true;
+      });
+
+      renderTab3TableCustom(filtered);
+    }
+
+    function resetTab3Filters() {
+      document.getElementById('filterProvince').value = '';
+      document.getElementById('filterMonth').value = '';
+      document.getElementById('filterYear').value = '';
+      document.getElementById('filterDocument').value = '';
+      document.getElementById('filterAction').value = '';
+      renderTab3TableCustom(tab3DetailedRecords);
+    }
+
     function renderTab3Table() {
+      renderTab3TableCustom(tab3DetailedRecords);
+    }
+
+    // RENDER TAB 3 TABLE WITH PROOF FILES COLUMNS
+    function renderTab3TableCustom(recordsList) {
       const tbody = document.getElementById('tab3DataTableBody');
-      if (!tab3DetailedRecords || tab3DetailedRecords.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="18" class="text-center text-muted">NO RECORDS FOUND.</td></tr>`;
+      if (!recordsList || recordsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="20" class="text-center text-muted">NO MATCHING RECORDS FOUND.</td></tr>`;
         return;
       }
-      tbody.innerHTML = tab3DetailedRecords.map(r => {
+      tbody.innerHTML = recordsList.map(r => {
         const rId = r._rowIndex || r.rowIndex;
         const year = r.year || r['YEAR'] || '2026';
         const province = r.province || r.fieldOffice || r['FIELD OFFICE'] || '';
@@ -1283,6 +1438,11 @@
         const daysRep = r.daysReported || r['DAYS REPORTED'] || r['NO. DAYS REPORTED'] || r['Days Reported'] || r['days_reported'] || '';
         const actionTaken = r.actionTaken || r['ACTION TAKEN'] || '';
         const reasonDisapproved = r.disapprovedReason || r['REASON IF DISAPPROVED'] || 'N/A';
+        const proofRec = r.proofReceivedUrl || r['PROOF RECEIVED'] || '';
+        const proofRel = r.proofReleasedUrl || r['PROOF RELEASED'] || '';
+
+        const proofRecCell = proofRec ? `<a href="${proofRec}" target="_blank" class="badge bg-primary text-decoration-none">VIEW PROOF</a>` : '<span class="text-muted">N/A</span>';
+        const proofRelCell = proofRel ? `<a href="${proofRel}" target="_blank" class="badge bg-info text-dark text-decoration-none">VIEW PROOF</a>` : '<span class="text-muted">N/A</span>';
 
         return `
         <tr>
@@ -1307,6 +1467,8 @@
           <td class="fw-bold text-info">${daysRep}</td>
           <td><span class="badge ${actionTaken === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${actionTaken}</span></td>
           <td>${reasonDisapproved}</td>
+          <td>${proofRecCell}</td>
+          <td>${proofRelCell}</td>
         </tr>
         `;
       }).join('');
@@ -1379,7 +1541,6 @@
         return;
       }
 
-      // Reset lock status to read-only when opening modal
       lockDocumentNumberField();
 
       document.getElementById('editRowIndex').value = record._rowIndex || record.rowIndex;
@@ -1421,7 +1582,6 @@
       const dateOfJobFairVal = document.getElementById('editDateOfJobFair').value;
       const dateOfEncodingVal = document.getElementById('editDateOfEncoding').value;
 
-      // 1. Turnaround Time
       if (dateFiledVal && dateIssuedVal) {
         const startDate = new Date(dateFiledVal + 'T00:00:00');
         const endDate = new Date(dateIssuedVal + 'T00:00:00');
@@ -1449,7 +1609,6 @@
         document.getElementById('editTurnaroundTime').value = `0 DAY(S)`;
       }
 
-      // 2. Days Filed Before JF
       if (dateOfJobFairVal && dateFiledVal) {
         const jfDate = new Date(dateOfJobFairVal + 'T00:00:00');
         const filedDate = new Date(dateFiledVal + 'T00:00:00');
@@ -1459,7 +1618,6 @@
         document.getElementById('editDaysFiledBeforeJF').value = `0 DAY(S)`;
       }
 
-      // 3. Days Reported
       if (dateOfEncodingVal && dateFiledVal) {
         const encDate = new Date(dateOfEncodingVal + 'T00:00:00');
         const filedDate = new Date(dateFiledVal + 'T00:00:00');
@@ -1513,7 +1671,6 @@
           const bsModal = bootstrap.Modal.getInstance(modalEl);
           if (bsModal) bsModal.hide();
           fetchAndRenderTab3Data();
-          loadSummaryMatrixData();
         } else {
           showScreenAlert(data.message || 'UPDATE FAILED', 'danger');
         }
@@ -1537,7 +1694,6 @@
         if (data.status === 'success' || data.success) {
           showScreenAlert(data.message || 'RECORD DELETED', 'success');
           fetchAndRenderTab3Data();
-          loadSummaryMatrixData();
         } else {
           showScreenAlert(data.message || 'DELETE FAILED', 'danger');
         }
@@ -1583,18 +1739,11 @@
       renderTab5Dashboard();
     }
 
-    // HELPER: EXTRACT TURNAROUND DAYS NUMERIC VALUE (EXCLUDES SAT/SUN/HOLIDAYS)
+    // HELPER: EXTRACT DYNAMIC TURNAROUND DAYS NUMERIC VALUE (EXCLUDES SAT/SUN/HOLIDAYS)
     function getTurnaroundDays(r) {
-      const raw = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
-      if (typeof raw === 'number') return raw;
-      if (typeof raw === 'string' && raw.includes('DAY')) {
-        const parsed = parseInt(raw.replace(/[^0-9]/g, ''), 10);
-        if (!isNaN(parsed)) return parsed;
-      }
-
-      // Calculate fallback from Date Filed vs Date Issued
       const dFiled = r.dateFiled || r['DATE FILED'];
       const dIssued = r.dateIssued || r['DATE ISSUED'];
+
       if (dFiled && dIssued) {
         const sDate = new Date(dFiled + 'T00:00:00');
         const eDate = new Date(dIssued + 'T00:00:00');
@@ -1612,10 +1761,17 @@
           return workingDays;
         }
       }
+
+      const raw = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
+      if (typeof raw === 'number') return raw;
+      if (typeof raw === 'string') {
+        const matches = raw.match(/\d+/);
+        if (matches) return parseInt(matches[0], 10);
+      }
       return 0;
     }
 
-    // TAB 4: CALCULATE AND DISPLAY KFS SUMMARY BASED ON TURNAROUND TIME PER MONTH
+    // TAB 4: CALCULATE AND DISPLAY KFS SUMMARY BASED ON ACCURATE TURNAROUND DAYS PER MONTH
     function refreshTab4Metrics() {
       const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
       
