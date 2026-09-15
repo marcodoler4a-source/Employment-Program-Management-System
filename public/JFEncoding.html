@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -197,12 +196,12 @@
 
     /* ROUNDED ACTION BUTTONS (MATCHING IMAGE 3) */
     .ble-action-btn {
-      min-height: 38px !important;
-      height: 38px !important;
-      padding: 0 22px !important;
+      min-height: 36px !important;
+      height: 36px !important;
+      padding: 0 18px !important;
       border-radius: 20px !important;
       font-weight: 700 !important;
-      font-size: 0.82rem !important;
+      font-size: 0.8rem !important;
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
@@ -254,6 +253,25 @@
       width: 90%;
       max-width: 520px;
       display: none;
+    }
+
+    /* PRINT SPECIFIC STYLING (FOR BLE REPORT PRINTING ONLY - MATCHING IMAGE 2) */
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      .print-ble-only, .print-ble-only * {
+        visibility: visible !important;
+      }
+      .print-ble-only {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+      }
+      .no-print, #sidebar, .header-banner, .nav-tabs, .btn, select, label, .ble-action-btn {
+        display: none !important;
+      }
     }
   </style>
 </head>
@@ -803,65 +821,97 @@
           </div>
         </div>
 
-        <!-- TAB 5: BLE JF Report (MATCHING IMAGE 1 & IMAGE 3 WITH BUTTONS, MONTH BANNER & SIDE SUMMARY TABLE) -->
+        <!-- TAB 5: BLE JF Report (WITH MONTH & YEAR FILTERS, ACTION BUTTONS & PRINT ONLY REPORT AREA) -->
         <div class="tab-pane fade" id="content-5" role="tabpanel">
           <div class="content-card">
             
-            <!-- ACTION BUTTONS BAR (MATCHING IMAGE 3) -->
-            <div class="bg-light p-3 rounded mb-3 border d-flex flex-wrap gap-2 justify-content-end align-items-center">
-              <button class="btn btn-primary ble-action-btn" onclick="triggerBleSearch()"><i class="bi bi-search me-1"></i> SEARCH</button>
-              <button class="btn btn-success ble-action-btn" onclick="window.print()"><i class="bi bi-printer me-1"></i> PRINT</button>
-              <button class="btn btn-success ble-action-btn" onclick="downloadBleReportExcel()"><i class="bi bi-download me-1"></i> DOWNLOAD</button>
-              <button class="btn btn-secondary ble-action-btn" onclick="showEndorsementAlert()"><i class="bi bi-file-earmark-text me-1"></i> ENDORSEMENT</button>
-              <button class="btn btn-primary ble-action-btn" onclick="activateTab('#tab-4')"><i class="bi bi-bar-chart-fill me-1"></i> KFS SUMMARY</button>
-            </div>
-
-            <!-- LIGHT GREEN MONTH BANNER (MATCHING IMAGE 1 & IMAGE 3) -->
-            <div class="alert alert-success bg-success-subtle text-success-emphasis border-0 text-center fw-bold fs-6 py-2 mb-3 text-uppercase shadow-sm" id="bleReportMonthBanner">
-              JOB FAIR REPORT FOR THE MONTH OF SEPTEMBER 2026
-            </div>
-
-            <!-- TWO-COLUMN LAYOUT: MAIN DETAILS TABLE + SIDE SUMMARY TABLE (MATCHING IMAGE 1) -->
-            <div class="row g-3">
-              <!-- MAIN DETAILS TABLE (LEFT COLUMN) -->
-              <div class="col-lg-8 col-md-12">
-                <div class="table-responsive">
-                  <table class="table table-bordered table-striped align-middle text-center" id="tab5DetailTable">
-                    <thead class="table-light text-nowrap fw-bold">
-                      <tr>
-                        <th>PROVINCE</th>
-                        <th>REPORTING PERIOD</th>
-                        <th>JOB FAIR SCHEDULE</th>
-                        <th>VENUE</th>
-                        <th>CLEARANCE NO.</th>
-                        <th>JOB FAIR DOCUMENT APPLIED</th>
-                        <th>ACTION TAKEN</th>
-                      </tr>
-                    </thead>
-                    <tbody id="tab5DetailBody">
-                      <tr><td colspan="7" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>LOADING BLE REPORT DATA...</td></tr>
-                    </tbody>
-                  </table>
+            <!-- INTERACTIVE BLE FILTERS & ACTION BUTTONS -->
+            <div class="bg-light p-3 rounded mb-3 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold mb-1">MONTH</label>
+                  <select class="form-select form-select-sm" id="filterBleMonth" onchange="renderTab5Dashboard()">
+                    <option value="">ALL MONTHS</option>
+                    <option value="JANUARY">JANUARY</option>
+                    <option value="FEBRUARY">FEBRUARY</option>
+                    <option value="MARCH">MARCH</option>
+                    <option value="APRIL">APRIL</option>
+                    <option value="MAY">MAY</option>
+                    <option value="JUNE">JUNE</option>
+                    <option value="JULY">JULY</option>
+                    <option value="AUGUST">AUGUST</option>
+                    <option value="SEPTEMBER">SEPTEMBER</option>
+                    <option value="OCTOBER">OCTOBER</option>
+                    <option value="NOVEMBER">NOVEMBER</option>
+                    <option value="DECEMBER">DECEMBER</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold mb-1">YEAR (AUTO TODAY)</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterBleYear" onchange="renderTab5Dashboard()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-6 d-flex justify-content-end align-items-end gap-2 flex-wrap">
+                  <button class="btn btn-outline-secondary ble-action-btn" onclick="resetBleFilters()">RESET</button>
+                  <button class="btn btn-primary ble-action-btn" onclick="triggerBleSearch()"><i class="bi bi-search me-1"></i> SEARCH</button>
+                  <button class="btn btn-success ble-action-btn" onclick="printBleReportOnly()"><i class="bi bi-printer me-1"></i> PRINT</button>
+                  <button class="btn btn-success ble-action-btn" onclick="downloadBleReportExcel()"><i class="bi bi-download me-1"></i> DOWNLOAD</button>
+                  <button class="btn btn-secondary ble-action-btn" onclick="openEndorsementModal()"><i class="bi bi-file-earmark-text me-1"></i> ENDORSEMENT</button>
+                  <button class="btn btn-primary ble-action-btn" onclick="activateTab('#tab-4')"><i class="bi bi-bar-chart-fill me-1"></i> KFS SUMMARY</button>
                 </div>
               </div>
+            </div>
 
-              <!-- SIDE SUMMARY TABLE (RIGHT COLUMN - MATCHING IMAGE 1) -->
-              <div class="col-lg-4 col-md-12">
-                <div class="table-responsive shadow-sm rounded">
-                  <table class="table table-bordered align-middle text-center mb-0" id="bleSummaryTable">
-                    <thead>
-                      <tr>
-                        <th colspan="3" class="bg-secondary text-white py-2 fw-bold text-center">SUMMARY</th>
-                      </tr>
-                      <tr class="table-light text-dark fw-bold" style="font-size: 0.78rem;">
-                        <th>PROVINCE</th>
-                        <th>JOB FAIR PERMIT</th>
-                        <th>JOB FAIR CLEARANCE</th>
-                      </tr>
-                    </thead>
-                    <tbody id="bleSummaryTableBody" style="font-size: 0.8rem;"></tbody>
-                    <tfoot class="table-light fw-bold" id="bleSummaryTableFoot" style="font-size: 0.8rem;"></tfoot>
-                  </table>
+            <!-- PRINTABLE AREA FOR BLE REPORT ONLY (MATCHING IMAGE 2) -->
+            <div id="printableBleReportArea" class="print-ble-only">
+              <!-- LIGHT GREEN MONTH BANNER (MATCHING IMAGE 1 & IMAGE 2) -->
+              <div class="alert alert-success bg-success-subtle text-success-emphasis border-0 text-center fw-bold fs-6 py-2 mb-3 text-uppercase shadow-sm" id="bleReportMonthBanner">
+                JOB FAIR REPORT FOR THE MONTH OF SEPTEMBER 2026
+              </div>
+
+              <!-- TWO-COLUMN LAYOUT: MAIN DETAILS TABLE + SIDE SUMMARY TABLE (MATCHING IMAGE 1 & IMAGE 2) -->
+              <div class="row g-3">
+                <!-- MAIN DETAILS TABLE (LEFT COLUMN) -->
+                <div class="col-lg-8 col-md-12">
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-striped align-middle text-center" id="tab5DetailTable">
+                      <thead class="table-light text-nowrap fw-bold">
+                        <tr>
+                          <th>PROVINCE</th>
+                          <th>REPORTING PERIOD</th>
+                          <th>JOB FAIR SCHEDULE</th>
+                          <th>VENUE</th>
+                          <th>CLEARANCE NO.</th>
+                          <th>JOB FAIR DOCUMENT APPLIED</th>
+                          <th>ACTION TAKEN</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tab5DetailBody">
+                        <tr><td colspan="7" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>LOADING BLE REPORT DATA...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- SIDE SUMMARY TABLE (RIGHT COLUMN - MATCHING IMAGE 1 & IMAGE 2) -->
+                <div class="col-lg-4 col-md-12">
+                  <div class="table-responsive shadow-sm rounded">
+                    <table class="table table-bordered align-middle text-center mb-0" id="bleSummaryTable">
+                      <thead>
+                        <tr>
+                          <th colspan="3" class="bg-secondary text-white py-2 fw-bold text-center">SUMMARY</th>
+                        </tr>
+                        <tr class="table-light text-dark fw-bold" style="font-size: 0.78rem;">
+                          <th>PROVINCE</th>
+                          <th>JOB FAIR PERMIT</th>
+                          <th>JOB FAIR CLEARANCE</th>
+                        </tr>
+                      </thead>
+                      <tbody id="bleSummaryTableBody" style="font-size: 0.8rem;"></tbody>
+                      <tfoot class="table-light fw-bold" id="bleSummaryTableFoot" style="font-size: 0.8rem;"></tfoot>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -894,7 +944,123 @@
     </div>
   </div>
 
-  <!-- EDIT RECORD MODAL (WITH PASSWORD PROTECTED PERMIT/CLEARANCE NO.) -->
+  <!-- CENTERED DELETE CONFIRMATION MODAL -->
+  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-danger text-white py-2">
+          <h5 class="modal-title fw-bold fs-6" id="deleteConfirmModalLabel"><i class="bi bi-exclamation-triangle-fill me-2"></i>CONFIRM DELETION</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center py-4 px-4">
+          <i class="bi bi-trash text-danger display-4 mb-2 d-block"></i>
+          <h5 class="fw-bold text-dark mb-2">ARE YOU SURE?</h5>
+          <p class="text-secondary small mb-0">Are you sure you want to delete this Job Fair record? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer justify-content-center bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-4 fw-bold" data-bs-dismiss="modal">CANCEL</button>
+          <button type="button" class="btn btn-danger btn-sm px-4 fw-bold" id="confirmDeleteBtn" onclick="confirmDeleteRecord()">DELETE RECORD</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OFFICIAL MEMORANDUM ENDORSEMENT MODAL (MATCHING IMAGE 1) -->
+  <div class="modal fade" id="endorsementModal" tabindex="-1" aria-labelledby="endorsementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-secondary text-white py-2">
+          <h5 class="modal-title fw-bold fs-6" id="endorsementModalLabel"><i class="bi bi-file-earmark-text me-2"></i>OFFICIAL MEMORANDUM ENDORSEMENT</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4" id="endorsementMemoPrintArea" style="background: white; color: black; font-family: 'Times New Roman', serif;">
+          <!-- MEMORANDUM HEADER LOGOS -->
+          <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom border-2 border-primary">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e4/Department_of_Labor_and_Employment_%28DOLE%29.svg" alt="DOLE" style="height: 65px;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+            <div class="text-center">
+              <h6 class="mb-0 text-secondary fw-normal">Republic of the Philippines</h6>
+              <h5 class="fw-bold mb-0 text-dark">DEPARTMENT OF LABOR AND EMPLOYMENT</h5>
+              <p class="mb-0 small fw-bold text-primary">Regional Office No. IV-A (CALABARZON)</p>
+            </div>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/52/Bagong_Pilipinas_logo.png" alt="Bagong Pilipinas" style="height: 65px;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+          </div>
+
+          <!-- MEMORANDUM DETAILS -->
+          <h4 class="fw-bold text-center mb-4" style="letter-spacing: 2px;">MEMORANDUM</h4>
+          
+          <table class="table table-borderless mb-3 text-uppercase" style="font-size: 0.92rem; color: #000;">
+            <tr>
+              <td style="width: 120px;" class="fw-bold">FOR</td>
+              <td style="width: 20px;" class="fw-bold">:</td>
+              <td class="fw-bold">ATTY. LENNARD CONSTANTINE C. SERRANO<br><span class="fw-normal text-muted style-normal" style="text-transform: none;">Bureau of Local Employment</span></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">FROM</td>
+              <td class="fw-bold">:</td>
+              <td class="fw-bold">Atty. ERWIN N. AQUINO<br><span class="fw-normal text-muted style-normal" style="text-transform: none;">Regional Director</span></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">SUBJECT</td>
+              <td class="fw-bold">:</td>
+              <td class="fw-bold" id="memoSubjectText">REPORT ON ISSUANCE OF JOB FAIR PERMIT/CLEARANCE FOR THE MONTH OF SEPTEMBER 2026</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">DATE</td>
+              <td class="fw-bold">:</td>
+              <td class="fw-bold" id="memoDateText">15 September 2026</td>
+            </tr>
+          </table>
+
+          <hr style="border-top: 2px solid #333;" class="my-3">
+
+          <p class="mb-3 text-none" style="font-size: 0.95rem; text-indent: 30px; text-transform: none;" id="memoBodyIntro">
+            This is to formally endorse this Office's report on Issuance of Job Fair Permit/Clearance for the month of September 2026, with breakdown as follows:
+          </p>
+
+          <!-- DYNAMIC ENDORSEMENT BREAKDOWN TABLE (MATCHING IMAGE 1) -->
+          <div class="my-4 d-flex justify-content-center">
+            <table class="table table-bordered text-center align-middle mb-0" style="max-width: 550px; font-size: 0.9rem; border: 2px solid #333;" id="memoBreakdownTable">
+              <thead class="table-light fw-bold" style="border-bottom: 2px solid #333;">
+                <tr>
+                  <th>PROVINCE</th>
+                  <th>JOB FAIR PERMIT</th>
+                  <th>JOB FAIR CLEARANCE</th>
+                </tr>
+              </thead>
+              <tbody id="memoBreakdownBody"></tbody>
+              <tfoot class="fw-bold table-light" style="border-top: 2px solid #333;" id="memoBreakdownFoot"></tfoot>
+            </table>
+          </div>
+
+          <p class="mb-2" style="font-size: 0.9rem; text-transform: none;">
+            For the complete details, please see attachment for your reference or you may access the consolidated file through this link: <a href="https://tinyurl.com/JFBleReport" target="_blank" class="fw-bold text-primary">tinyurl.com/JFBleReport</a>
+          </p>
+          <p class="mb-4" style="font-size: 0.9rem; text-transform: none;">
+            We hope that you find the said documents in order.
+          </p>
+
+          <!-- FOOTER CONTACT BANNER -->
+          <div class="mt-5 pt-3 border-top small text-muted d-flex justify-content-between align-items-end" style="font-size: 0.68rem; text-transform: none;">
+            <div>
+              <strong class="text-dark">REGIONAL OFFICE</strong><br>
+              Anderson Bldg. II, Parian, Calamba City, Laguna<br>
+              (049)545-7360 / (049)545-7364 / (049)545-0292<br>
+              ro4a@dole.gov.ph | dole4lmsd@yahoo.com
+            </div>
+            <div class="text-end">
+              <strong class="text-dark">FIELD OFFICES:</strong> BATANGAS | CAVITE | LAGUNA | QUEZON | RIZAL
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">CLOSE</button>
+          <button type="button" class="btn btn-success btn-sm px-4 fw-bold" onclick="printEndorsementMemo()"><i class="bi bi-printer me-1"></i> PRINT ENDORSEMENT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT RECORD MODAL -->
   <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
@@ -924,7 +1090,7 @@
                 <input type="text" class="form-control text-uppercase" id="editContactNumber" required oninput="convertToUppercase(this)">
               </div>
               
-              <!-- PERMIT/CLEARANCE NO. (READ-ONLY BY DEFAULT, UNLOCKED VIA PASSWORD) -->
+              <!-- PERMIT/CLEARANCE NO. -->
               <div class="col-md-6">
                 <label class="form-label">PERMIT / CLEARANCE NO. <span>*</span></label>
                 <div class="input-group">
@@ -1024,6 +1190,7 @@
     let rawSheetRecords = [];
     let tab3DetailedRecords = [];
     let screenAlertTimeout = null;
+    let pendingDeleteRowIndex = null;
 
     // LIVE GOOGLE SHEET CSV EXPORT ENDPOINT (GID 251500066)
     const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1-dN0cj7ozUlH14t7otsucxwDOOOeZ67WoWsQOGZ_aM4/gviz/tq?tqx=out:csv&gid=251500066";
@@ -1076,7 +1243,7 @@
 
       const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-      const yearDropdownIds = ['filterYear', 'filterSummaryYear', 'filterKfsYear'];
+      const yearDropdownIds = ['filterYear', 'filterSummaryYear', 'filterKfsYear', 'filterBleYear'];
 
       yearDropdownIds.forEach(id => {
         const el = document.getElementById(id);
@@ -1092,9 +1259,16 @@
           el.value = String(currentYear);
         }
       });
+
+      // AUTO-SELECT CURRENT MONTH IN BLE FILTER
+      const bleMonthEl = document.getElementById('filterBleMonth');
+      if (bleMonthEl && !bleMonthEl.value) {
+        const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+        bleMonthEl.value = months[new Date().getMonth()];
+      }
     }
 
-    // SHOW ACTUAL LOGGED IN USERNAME INSTEAD OF "ADMINISTRATOR" OR GENERIC ROLE
+    // SHOW ACTUAL LOGGED IN USERNAME INSTEAD OF ADMINISTRATOR
     function initLoggedInUser() {
       const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser') || localStorage.getItem('userContext') || localStorage.getItem('username') || sessionStorage.getItem('username');
       let username = "DOLE REGION IV-A";
@@ -1284,7 +1458,6 @@
     }
 
     // COMPUTED METRICS LOGIC (ENCODING FORM)
-    // MINUSES SATURDAYS (6), SUNDAYS (0), AND PHILIPPINE HOLIDAYS
     function calculateCalculatedFields() {
       const dateFiledVal = document.getElementById('dateFiled').value;
       const dateIssuedVal = document.getElementById('dateIssued').value;
@@ -1450,7 +1623,7 @@
       return deduplicated;
     }
 
-    // TAB 2: ACCURATELY CALCULATE SUMMARY TABLE FOR APPROVED & DEDUPLICATED RECORDS
+    // TAB 2: SUMMARY TABLE
     function filterSummaryTable() {
       renderSummaryTable(tab3DetailedRecords);
     }
@@ -1640,7 +1813,7 @@
       });
     }
 
-    // API: Fetch Records (Tab 3 & Tab 6)
+    // API: Fetch Records
     async function fetchAndRenderTab3Data() {
       try {
         const tbody = document.getElementById('tab3DataTableBody');
@@ -1721,7 +1894,7 @@
       renderTab3TableCustom(sortRecordsLatestToEarliest(tab3DetailedRecords));
     }
 
-    // RENDER TAB 3 TABLE WITH PROOF FILES COLUMNS
+    // RENDER TAB 3 TABLE
     function renderTab3TableCustom(recordsList) {
       const tbody = document.getElementById('tab3DataTableBody');
       if (!recordsList || recordsList.length === 0) {
@@ -1757,7 +1930,7 @@
         <tr>
           <td>
             <button class="btn btn-warning btn-sm py-0 me-1" onclick="editRecord(${rId})">EDIT</button>
-            <button class="btn btn-danger btn-sm py-0" onclick="executeDeleteRecord(${rId})">DEL</button>
+            <button class="btn btn-danger btn-sm py-0" onclick="triggerDeleteModal(${rId})">DEL</button>
           </td>
           <td class="fw-bold">${year}</td>
           <td>${province}</td>
@@ -1783,7 +1956,41 @@
       }).join('');
     }
 
-    // LOCK / UNLOCK PERMIT & CLEARANCE NO. WITH CENTERED PASSWORD MODAL
+    // CENTERED DELETE CONFIRMATION MODAL HANDLER
+    function triggerDeleteModal(rowIndex) {
+      pendingDeleteRowIndex = rowIndex;
+      const modalEl = document.getElementById('deleteConfirmModal');
+      const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      bsModal.show();
+    }
+
+    async function confirmDeleteRecord() {
+      if (!pendingDeleteRowIndex) return;
+      const modalEl = document.getElementById('deleteConfirmModal');
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+
+      try {
+        const res = await fetch('/api/jf/delete-record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rowIndex: pendingDeleteRowIndex })
+        });
+        const data = await res.json();
+        if (data.status === 'success' || data.success) {
+          showScreenAlert(data.message || 'RECORD DELETED SUCCESSFULLY', 'success');
+          fetchAndRenderTab3Data();
+        } else {
+          showScreenAlert(data.message || 'DELETE FAILED', 'danger');
+        }
+      } catch (err) {
+        showScreenAlert("Delete failed", "danger");
+      } finally {
+        pendingDeleteRowIndex = null;
+      }
+    }
+
+    // LOCK / UNLOCK PERMIT & CLEARANCE NO.
     function lockDocumentNumberField() {
       const docInput = document.getElementById('editDocumentNumber');
       const lockBtn = document.getElementById('unlockDocNumBtn');
@@ -1842,7 +2049,7 @@
       }
     }
 
-    // EDIT RECORD HANDLER & MODAL TRIGGER
+    // EDIT RECORD HANDLER
     function editRecord(rowIndex) {
       const record = tab3DetailedRecords.find(r => (r._rowIndex || r.rowIndex) == rowIndex);
       if (!record) {
@@ -1884,7 +2091,6 @@
       }
     }
 
-    // EDIT FORM CALCULATION - MINUSES SATURDAYS (6), SUNDAYS (0), AND PHILIPPINE HOLIDAYS
     function calculateEditCalculatedFields() {
       const dateFiledVal = document.getElementById('editDateFiled').value;
       const dateIssuedVal = document.getElementById('editDateIssued').value;
@@ -1991,26 +2197,6 @@
       }
     }
 
-    async function executeDeleteRecord(rowIndex) {
-      if (!confirm("Are you sure you want to delete this record?")) return;
-      try {
-        const res = await fetch('/api/jf/delete-record', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rowIndex })
-        });
-        const data = await res.json();
-        if (data.status === 'success' || data.success) {
-          showScreenAlert(data.message || 'RECORD DELETED', 'success');
-          fetchAndRenderTab3Data();
-        } else {
-          showScreenAlert(data.message || 'DELETE FAILED', 'danger');
-        }
-      } catch (err) {
-        showScreenAlert("Delete failed", "danger");
-      }
-    }
-
     function downloadTab3Excel() {
       const wb = XLSX.utils.table_to_book(document.getElementById("tab3TableElement"), { sheet: "JF DATABASE" });
       XLSX.writeFile(wb, "JF_Database_Report.xlsx");
@@ -2026,8 +2212,116 @@
       showScreenAlert("NAVIGATED TO JF DATABASE SEARCH & FILTERS.", "info");
     }
 
-    function showEndorsementAlert() {
-      showScreenAlert("BLE ENDORSEMENT DOCUMENT GENERATING...", "success");
+    // PRINT ONLY THE BLE JF REPORT AREA (MATCHING IMAGE 2)
+    function printBleReportOnly() {
+      window.print();
+    }
+
+    // OPEN ENDORSEMENT MEMORANDUM MODAL (MATCHING IMAGE 1)
+    function openEndorsementModal() {
+      updateEndorsementMemoContent();
+      const modalEl = document.getElementById('endorsementModal');
+      const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      bsModal.show();
+    }
+
+    // UPDATE ENDORSEMENT MEMO CONTENT BASED ON SELECTED BLE FILTERS
+    function updateEndorsementMemoContent() {
+      const fMonth = (document.getElementById('filterBleMonth') ? document.getElementById('filterBleMonth').value : '').toUpperCase() || 'SEPTEMBER';
+      const fYear = (document.getElementById('filterBleYear') ? document.getElementById('filterBleYear').value : '').toUpperCase() || String(new Date().getFullYear());
+
+      document.getElementById('memoSubjectText').innerText = `REPORT ON ISSUANCE OF JOB FAIR PERMIT/CLEARANCE FOR THE MONTH OF ${fMonth} ${fYear}`;
+      document.getElementById('memoBodyIntro').innerText = `This is to formally endorse this Office's report on Issuance of Job Fair Permit/Clearance for the month of ${fMonth} ${fYear}, with breakdown as follows:`;
+      
+      const now = new Date();
+      const formattedDate = `${now.getDate()} ${now.toLocaleString('default', { month: 'long' })} ${now.getFullYear()}`;
+      document.getElementById('memoDateText').innerText = formattedDate;
+
+      // Calculate dynamic memo breakdown table per province
+      const provinces = ["Batangas", "Cavite", "Laguna", "Quezon", "Rizal"];
+      let summaryCounts = {};
+      provinces.forEach(p => summaryCounts[p.toUpperCase()] = { permit: 0, clearance: 0 });
+
+      const cleanApproved = getDeduplicatedApprovedRecords(tab3DetailedRecords || []);
+      cleanApproved.forEach(r => {
+        const rawM = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '').toUpperCase();
+        const rawY = (r.year || r['YEAR'] || '').toUpperCase();
+        
+        if (fMonth && !rawM.includes(fMonth)) return;
+        if (fYear && !rawY.includes(fYear)) return;
+
+        const rawP = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const rawDoc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        const pUpper = provinces.map(x => x.toUpperCase()).find(prov => rawP.includes(prov));
+
+        if (pUpper) {
+          if (rawDoc.includes('PERMIT') || rawDoc.includes('JFP')) {
+            summaryCounts[pUpper].permit++;
+          } else if (rawDoc.includes('CLEARANCE') || rawDoc.includes('JFC')) {
+            summaryCounts[pUpper].clearance++;
+          }
+        }
+      });
+
+      let totalPermits = 0;
+      let totalClearances = 0;
+
+      const memoBody = document.getElementById('memoBreakdownBody');
+      memoBody.innerHTML = provinces.map(p => {
+        const pUpper = p.toUpperCase();
+        const pCount = summaryCounts[pUpper].permit;
+        const cCount = summaryCounts[pUpper].clearance;
+        totalPermits += pCount;
+        totalClearances += cCount;
+
+        return `
+          <tr>
+            <td class="fw-bold text-start ps-3">${p}</td>
+            <td>${pCount}</td>
+            <td>${cCount}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('memoBreakdownFoot').innerHTML = `
+        <tr>
+          <td class="fw-bold text-start ps-3">TOTAL</td>
+          <td class="fw-bold">${totalPermits}</td>
+          <td class="fw-bold text-primary">${totalClearances}</td>
+        </tr>
+      `;
+    }
+
+    // PRINT OFFICIAL ENDORSEMENT MEMORANDUM (MATCHING IMAGE 1)
+    function printEndorsementMemo() {
+      const memoContent = document.getElementById('endorsementMemoPrintArea').innerHTML;
+      const printWindow = window.open('', '_blank', 'width=850,height=1100');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>OFFICIAL MEMORANDUM ENDORSEMENT</title>
+          <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+          <style>
+            body { font-family: 'Times New Roman', serif; padding: 40px; color: #000; background: #fff; }
+            .table-bordered th, .table-bordered td { border: 1px solid #000 !important; }
+            @media print {
+              @page { size: portrait; margin: 20mm; }
+            }
+          </style>
+        </head>
+        <body>
+          ${memoContent}
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
 
     function renderTab6Schedules() {
@@ -2062,7 +2356,6 @@
       renderTab5Dashboard();
     }
 
-    // HELPER: EXTRACT DYNAMIC TURNAROUND DAYS NUMERIC VALUE
     function getTurnaroundDays(r) {
       const dFiled = r.dateFiled || r['DATE FILED'];
       const dIssued = r.dateIssued || r['DATE ISSUED'];
@@ -2100,7 +2393,13 @@
       refreshTab4Metrics();
     }
 
-    // TAB 4: CALCULATE AND DISPLAY KFS SUMMARY FOR CLEARANCES & PERMITS SEPARATELY
+    function resetBleFilters() {
+      document.getElementById('filterBleMonth').value = '';
+      document.getElementById('filterBleYear').value = String(new Date().getFullYear());
+      renderTab5Dashboard();
+    }
+
+    // TAB 4: KFS SUMMARY METRICS
     function refreshTab4Metrics() {
       const fProvince = (document.getElementById('filterKfsProvince') ? document.getElementById('filterKfsProvince').value : '').toUpperCase();
       const fYear = (document.getElementById('filterKfsYear') ? document.getElementById('filterKfsYear').value : '').toUpperCase();
@@ -2132,7 +2431,6 @@
       showScreenAlert("KFS SUMMARY METRICS REFRESHED.", "success");
     }
 
-    // RENDER TURNAROUND MATRIX TABLE
     function renderTurnaroundTimelineTable(records, tbodyId, tfootId) {
       const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
       
@@ -2269,22 +2567,31 @@
       `;
     }
 
-    // TAB 5: RENDER BLE DYNAMIC DASHBOARD (MAIN DETAILS TABLE + SIDE SUMMARY TABLE MATCHING IMAGE 1 & IMAGE 3)
+    // TAB 5: RENDER BLE DASHBOARD WITH MONTH & YEAR FILTERS (MATCHING IMAGE 1 & IMAGE 2)
     function renderTab5Dashboard() {
-      const now = new Date();
-      const currentMonthName = now.toLocaleString('default', { month: 'long' }).toUpperCase();
-      const currentYear = now.getFullYear();
+      const fMonth = (document.getElementById('filterBleMonth') ? document.getElementById('filterBleMonth').value : '').toUpperCase();
+      const fYear = (document.getElementById('filterBleYear') ? document.getElementById('filterBleYear').value : '').toUpperCase() || String(new Date().getFullYear());
+
       const monthBanner = document.getElementById('bleReportMonthBanner');
       if (monthBanner) {
-        monthBanner.innerText = `JOB FAIR REPORT FOR THE MONTH OF ${currentMonthName} ${currentYear}`;
+        const monthTitle = fMonth ? fMonth : 'ALL MONTHS';
+        monthBanner.innerText = `JOB FAIR REPORT FOR THE MONTH OF ${monthTitle} ${fYear}`;
       }
+
+      // Filter raw records by month & year
+      const records = (tab3DetailedRecords || []).filter(r => {
+        const rawM = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '').toUpperCase();
+        const rawY = (r.year || r['YEAR'] || '').toUpperCase();
+
+        if (fMonth && !rawM.includes(fMonth)) return false;
+        if (fYear && !rawY.includes(fYear)) return false;
+        return true;
+      });
 
       // 1. Populate Main Details Table
       const tbody = document.getElementById('tab5DetailBody');
-      const records = tab3DetailedRecords || [];
-
       if (!records.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">NO RECORDS AVAILABLE.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">NO MATCHING RECORDS FOUND FOR ${fMonth || 'ALL MONTHS'} ${fYear}.</td></tr>`;
       } else {
         tbody.innerHTML = records.map(r => {
           const province = r.province || r.fieldOffice || r['FIELD OFFICE'] || '';
@@ -2309,7 +2616,7 @@
         }).join('');
       }
 
-      // 2. Populate Side Summary Table (Matching Image 1)
+      // 2. Populate Side Summary Table (Matching Image 1 & Image 2)
       const summaryBody = document.getElementById('bleSummaryTableBody');
       const summaryFoot = document.getElementById('bleSummaryTableFoot');
 
