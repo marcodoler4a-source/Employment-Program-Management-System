@@ -324,7 +324,8 @@
         <li class="nav-item">
           <button class="nav-link" id="tab-3" data-bs-toggle="tab" data-bs-target="#content-3" type="button">JF DATABASE</button>
         </li>
-        <li class="nav-item">
+        <!-- KFS SUMMARY TAB (RESTRICTED ACCESS - VISIBLE ONLY TO DOLE4A USER) -->
+        <li class="nav-item" id="tab4NavItem" style="display: none;">
           <button class="nav-link" id="tab-4" data-bs-toggle="tab" data-bs-target="#content-4" type="button" onclick="checkTab4Access(event)">KFS SUMMARY</button>
         </li>
         <li class="nav-item">
@@ -508,7 +509,7 @@
           </div>
         </div>
 
-        <!-- TAB 3: Database Report (ALL COLUMNS SHOWN) -->
+        <!-- TAB 3: Database Report (MATCHES GOOGLE SHEETS STRUCTURE EXACTLY) -->
         <div class="tab-pane fade" id="content-3" role="tabpanel">
           <div class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -547,19 +548,28 @@
           </div>
         </div>
         
-        <!-- TAB 4: KFS Summary -->
+        <!-- TAB 4: KFS Summary (TURNAROUND TIME BREAKDOWN PER MONTH) -->
         <div class="tab-pane fade" id="content-4" role="tabpanel">
           <div class="content-card">
-            <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;">KFS SUMMARY METRICS</h3>
+            <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;">📊 KFS SUMMARY METRICS (TURNAROUND TIME BREAKDOWN PER MONTH)</h3>
             <div class="table-responsive">
               <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
-                <thead class="table-primary text-white">
+                <thead class="table-primary text-white text-nowrap">
                   <tr>
-                    <th rowspan="2">MONTH</th>
-                    <th>LESS THAN 1</th><th>1</th><th>2</th><th>3</th>
-                    <th>LESS THAN 4</th><th>4</th><th>5</th><th>6</th><th>7</th>
-                    <th>LESS THAN 15</th><th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20</th>
-                    <th>TOTAL WITHIN PT</th><th>TOTAL BEYOND PT</th><th>BEYOND PT DAYS</th>
+                    <th rowspan="2" class="align-middle">MONTH</th>
+                    <th colspan="4" class="bg-success text-white">WITHIN PT (&le; 3 DAYS)</th>
+                    <th rowspan="2" class="bg-dark text-white align-middle">&lt; 4 (WITHIN PT)</th>
+                    <th colspan="4">4 TO 7 DAYS</th>
+                    <th rowspan="2" class="align-middle">&lt; 15</th>
+                    <th colspan="6">15 TO 20+ DAYS</th>
+                    <th rowspan="2" class="bg-success text-white align-middle">TOTAL WITHIN PT</th>
+                    <th rowspan="2" class="bg-danger text-white align-middle">TOTAL BEYOND PT</th>
+                    <th rowspan="2" class="bg-warning text-dark align-middle">BEYOND PT DAYS</th>
+                  </tr>
+                  <tr>
+                    <th>&lt; 1</th><th>1</th><th>2</th><th>3</th>
+                    <th>4</th><th>5</th><th>6</th><th>7</th>
+                    <th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20+</th>
                   </tr>
                 </thead>
                 <tbody id="clearanceTimelineBody"></tbody>
@@ -719,8 +729,6 @@
   <script>
     let rawSheetRecords = [];
     let tab3DetailedRecords = [];
-    let tab4Unlocked = false;
-    let tab5Unlocked = false;
     let screenAlertTimeout = null;
 
     // Standard Holidays List (MM-DD)
@@ -746,6 +754,7 @@
 
     window.addEventListener('DOMContentLoaded', function() {
       initLoggedInUser();
+      checkKfsTabVisibility();
       loadSummaryMatrixData();
       fetchAndRenderTab3Data();
 
@@ -758,6 +767,25 @@
 
       calculateCalculatedFields();
     });
+
+    function isDole4aUser() {
+      const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser');
+      if (!rawUser) return false;
+      try {
+        const parsed = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
+        const name = (parsed.username || parsed.municipality || parsed.role || "").toUpperCase();
+        return name.includes("DOLE4A") || name.includes("DOLE 4A") || name.includes("DOLE REGION IV-A") || name === "ADMIN";
+      } catch(e) {
+        return String(rawUser).toUpperCase().includes("DOLE4A");
+      }
+    }
+
+    function checkKfsTabVisibility() {
+      const tab4Item = document.getElementById('tab4NavItem');
+      if (tab4Item) {
+        tab4Item.style.display = isDole4aUser() ? 'block' : 'none';
+      }
+    }
 
     function resetFormWithDate() {
       setTimeout(() => {
@@ -801,7 +829,7 @@
       if (triggerEl) bootstrap.Tab.getOrCreateInstance(triggerEl).show();
     }
 
-    // CENTERED ALERT MESSAGE WITH 3-SECOND AUTO DISMISS
+    // CENTERED SCREEN ALERT MESSAGE WITH 3-SECOND AUTO DISMISS
     function showScreenAlert(message, type) {
       const container = document.getElementById('screenAlertContainer');
       document.getElementById('screenAlertMessage').innerText = message;
@@ -1070,12 +1098,13 @@
         tab3DetailedRecords = data.records || data || [];
         renderTab3Table();
         renderTab6Schedules();
+        refreshTab4Metrics();
       } catch (err) {
         console.error("Database fetch error:", err);
       }
     }
 
-    // RENDER ALL COLUMNS IN TAB 3 (DATABASE)
+    // RENDER ALL 18 COLUMNS IN TAB 3 (DATABASE) - MATCHING GOOGLE SHEETS STRUCTURE
     function renderTab3Table() {
       const tbody = document.getElementById('tab3DataTableBody');
       if (!tab3DetailedRecords || tab3DetailedRecords.length === 0) {
@@ -1084,40 +1113,53 @@
       }
       tbody.innerHTML = tab3DetailedRecords.map(r => {
         const rId = r._rowIndex || r.rowIndex;
+        const year = r.year || r['YEAR'] || '2026';
+        const province = r.province || r.fieldOffice || r['FIELD OFFICE'] || '';
+        const repPeriod = r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '';
+        const sponsor = r.sponsor || r['SPONSOR / ORGANIZER'] || '';
+        const contact = r.contactNumber || r['CONTACT NUMBER'] || '';
+        const docNo = r.documentNumber || r['PERMIT / CLEARANCE NO.'] || '';
+        const docApplied = r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || '';
+        const venue = r.jobFairVenue || r['JOB FAIR VENUE'] || '';
+        const dateJf = r.dateOfJobFair || r['DATE OF JOB FAIR'] || '';
+        const dateFiled = r.dateFiled || r['DATE FILED'] || '';
+        const dateIssued = r.dateIssued || r['DATE ISSUED'] || '';
         const dateEnc = r.dateOfEncoding || r['DATE OF ENCODING'] || r['Date of Encoding'] || r['date_of_encoding'] || '';
         const turnaround = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
         const daysBefore = r.daysFiledBeforeJF || r['DAYS FILED BEFORE JF'] || r['NO. DAYS FILED BEFORE JF'] || r['Days Filed Before JF'] || r['days_filed_before_jf'] || '';
         const daysRep = r.daysReported || r['DAYS REPORTED'] || r['NO. DAYS REPORTED'] || r['Days Reported'] || r['days_reported'] || '';
+        const actionTaken = r.actionTaken || r['ACTION TAKEN'] || '';
+        const reasonDisapproved = r.disapprovedReason || r['REASON IF DISAPPROVED'] || 'N/A';
 
         return `
         <tr>
           <td>
-            <button class="btn btn-warning btn-sm py-0" onclick="editRecord(${rId})">EDIT</button>
+            <button class="btn btn-warning btn-sm py-0 me-1" onclick="editRecord(${rId})">EDIT</button>
             <button class="btn btn-danger btn-sm py-0" onclick="executeDeleteRecord(${rId})">DEL</button>
           </td>
-          <td>${r.year || r['YEAR'] || '2026'}</td>
-          <td>${r.province || r.fieldOffice || r['FIELD OFFICE'] || ''}</td>
-          <td>${r.month || r.reportingPeriod || r['REPORTING PERIOD'] || ''}</td>
-          <td class="text-start">${r.sponsor || r['SPONSOR / ORGANIZER'] || ''}</td>
-          <td>${r.contactNumber || r['CONTACT NUMBER'] || ''}</td>
-          <td><strong>${r.documentNumber || r['PERMIT / CLEARANCE NO.'] || ''}</strong></td>
-          <td>${r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || ''}</td>
-          <td class="text-start">${r.jobFairVenue || r['JOB FAIR VENUE'] || ''}</td>
-          <td>${r.dateOfJobFair || r['DATE OF JOB FAIR'] || ''}</td>
-          <td>${r.dateFiled || r['DATE FILED'] || ''}</td>
-          <td>${r.dateIssued || r['DATE ISSUED'] || ''}</td>
+          <td>${year}</td>
+          <td>${province}</td>
+          <td>${repPeriod}</td>
+          <td class="text-start">${sponsor}</td>
+          <td>${contact}</td>
+          <td><strong>${docNo}</strong></td>
+          <td>${docApplied}</td>
+          <td class="text-start">${venue}</td>
+          <td>${dateJf}</td>
+          <td>${dateFiled}</td>
+          <td>${dateIssued}</td>
           <td>${dateEnc}</td>
           <td class="fw-bold text-primary">${turnaround}</td>
           <td class="fw-bold text-success">${daysBefore}</td>
           <td class="fw-bold text-info">${daysRep}</td>
-          <td><span class="badge ${(r.actionTaken || r['ACTION TAKEN']) === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${r.actionTaken || r['ACTION TAKEN'] || ''}</span></td>
-          <td>${r.disapprovedReason || r['REASON IF DISAPPROVED'] || 'N/A'}</td>
+          <td><span class="badge ${actionTaken === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${actionTaken}</span></td>
+          <td>${reasonDisapproved}</td>
         </tr>
         `;
       }).join('');
     }
 
-    // LOCK / UNLOCK PERMIT & CLEARANCE NO. WITH PASSWORD
+    // LOCK / UNLOCK PERMIT & CLEARANCE NO. WITH PASSWORD (CENTERED SCREEN ALERT)
     function lockDocumentNumberField() {
       const docInput = document.getElementById('editDocumentNumber');
       const lockBtn = document.getElementById('unlockDocNumBtn');
@@ -1153,6 +1195,7 @@
         }
       } else {
         lockDocumentNumberField();
+        showScreenAlert("PERMIT/CLEARANCE NO. FIELD LOCKED.", "warning");
       }
     }
 
@@ -1164,7 +1207,7 @@
         return;
       }
 
-      // Always reset lock status to read-only when opening modal
+      // Reset lock status to read-only when opening modal
       lockDocumentNumberField();
 
       document.getElementById('editRowIndex').value = record._rowIndex || record.rowIndex;
@@ -1353,7 +1396,13 @@
       `).join('');
     }
 
+    // KFS TAB ACCESS CHECK
     function checkTab4Access(event) {
+      if (!isDole4aUser()) {
+        if (event) event.preventDefault();
+        showScreenAlert("ACCESS DENIED: KFS SUMMARY IS VISIBLE ONLY TO DOLE4A USER.", "danger");
+        return false;
+      }
       refreshTab4Metrics();
     }
 
@@ -1361,13 +1410,171 @@
       renderTab5Dashboard();
     }
 
-    async function refreshTab4Metrics() {
-      try {
-        const res = await fetch('/api/jf/tab4-breakdown');
-        const data = await res.json();
-        const tbody = document.getElementById('clearanceTimelineBody');
-        tbody.innerHTML = `<tr><td colspan="20" class="text-center">METRICS PROCESSED (${(data.clearanceRecords || []).length} Records)</td></tr>`;
-      } catch(e) {}
+    // HELPER: EXTRACT TURNAROUND DAYS NUMERIC VALUE
+    function getTurnaroundDays(r) {
+      const raw = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
+      if (typeof raw === 'number') return raw;
+      if (typeof raw === 'string') {
+        const parsed = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(parsed)) return parsed;
+      }
+
+      // Calculate fallback from Date Filed vs Date Issued
+      const dFiled = r.dateFiled || r['DATE FILED'];
+      const dIssued = r.dateIssued || r['DATE ISSUED'];
+      if (dFiled && dIssued) {
+        const sDate = new Date(dFiled + 'T00:00:00');
+        const eDate = new Date(dIssued + 'T00:00:00');
+        if (!isNaN(sDate) && !isNaN(eDate) && eDate >= sDate) {
+          let workingDays = 0;
+          let cur = new Date(sDate.getTime());
+          while (cur <= eDate) {
+            const dow = cur.getDay();
+            const mmDd = String(cur.getMonth() + 1).padStart(2, '0') + '-' + String(cur.getDate()).padStart(2, '0');
+            if (dow !== 0 && !philippineHolidays.includes(mmDd)) workingDays++;
+            cur.setDate(cur.getDate() + 1);
+          }
+          return workingDays;
+        }
+      }
+      return 0;
+    }
+
+    // TAB 4: CALCULATE AND DISPLAY KFS SUMMARY BASED ON TURNAROUND TIME PER MONTH
+    function refreshTab4Metrics() {
+      const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+      
+      let monthlyData = {};
+      months.forEach(m => {
+        monthlyData[m] = {
+          lessThan1: 0, d1: 0, d2: 0, d3: 0,
+          d4: 0, d5: 0, d6: 0, d7: 0,
+          lessThan15: 0,
+          d15: 0, d16: 0, d17: 0, d18: 0, d19: 0, d20Plus: 0,
+          beyondPTDays: 0
+        };
+      });
+
+      tab3DetailedRecords.forEach(r => {
+        const monthStr = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '').toUpperCase();
+        const matchedMonth = months.find(m => monthStr.includes(m));
+        
+        if (matchedMonth) {
+          const days = getTurnaroundDays(r);
+          const target = monthlyData[matchedMonth];
+
+          if (days < 1) target.lessThan1++;
+          else if (days === 1) target.d1++;
+          else if (days === 2) target.d2++;
+          else if (days === 3) target.d3++;
+          else if (days === 4) target.d4++;
+          else if (days === 5) target.d5++;
+          else if (days === 6) target.d6++;
+          else if (days === 7) target.d7++;
+          else if (days === 15) target.d15++;
+          else if (days === 16) target.d16++;
+          else if (days === 17) target.d17++;
+          else if (days === 18) target.d18++;
+          else if (days === 19) target.d19++;
+          else if (days >= 20) target.d20Plus++;
+
+          if (days < 15) {
+            target.lessThan15++;
+          }
+
+          if (days > 3) {
+            target.beyondPTDays += (days - 3);
+          }
+        }
+      });
+
+      let tbody = document.getElementById('clearanceTimelineBody');
+      tbody.innerHTML = '';
+
+      let totals = {
+        lessThan1: 0, d1: 0, d2: 0, d3: 0, lessThan4: 0,
+        d4: 0, d5: 0, d6: 0, d7: 0, lessThan15: 0,
+        d15: 0, d16: 0, d17: 0, d18: 0, d19: 0, d20Plus: 0,
+        totalWithinPT: 0, totalBeyondPT: 0, beyondPTDays: 0
+      };
+
+      months.forEach(m => {
+        const d = monthlyData[m];
+        const lessThan4 = d.lessThan1 + d.d1 + d.d2 + d.d3;
+        const totalWithinPT = lessThan4;
+        const totalBeyondPT = d.d4 + d.d5 + d.d6 + d.d7 + d.d15 + d.d16 + d.d17 + d.d18 + d.d19 + d.d20Plus;
+
+        totals.lessThan1 += d.lessThan1;
+        totals.d1 += d.d1;
+        totals.d2 += d.d2;
+        totals.d3 += d.d3;
+        totals.lessThan4 += lessThan4;
+        totals.d4 += d.d4;
+        totals.d5 += d.d5;
+        totals.d6 += d.d6;
+        totals.d7 += d.d7;
+        totals.lessThan15 += d.lessThan15;
+        totals.d15 += d.d15;
+        totals.d16 += d.d16;
+        totals.d17 += d.d17;
+        totals.d18 += d.d18;
+        totals.d19 += d.d19;
+        totals.d20Plus += d.d20Plus;
+        totals.totalWithinPT += totalWithinPT;
+        totals.totalBeyondPT += totalBeyondPT;
+        totals.beyondPTDays += d.beyondPTDays;
+
+        tbody.innerHTML += `
+          <tr>
+            <td class="fw-bold text-start">${m}</td>
+            <td>${d.lessThan1 || '-'}</td>
+            <td>${d.d1 || '-'}</td>
+            <td>${d.d2 || '-'}</td>
+            <td>${d.d3 || '-'}</td>
+            <td class="fw-bold bg-light">${lessThan4 || '-'}</td>
+            <td>${d.d4 || '-'}</td>
+            <td>${d.d5 || '-'}</td>
+            <td>${d.d6 || '-'}</td>
+            <td>${d.d7 || '-'}</td>
+            <td class="fw-bold bg-light">${d.lessThan15 || '-'}</td>
+            <td>${d.d15 || '-'}</td>
+            <td>${d.d16 || '-'}</td>
+            <td>${d.d17 || '-'}</td>
+            <td>${d.d18 || '-'}</td>
+            <td>${d.d19 || '-'}</td>
+            <td>${d.d20Plus || '-'}</td>
+            <td class="fw-bold text-success">${totalWithinPT || '-'}</td>
+            <td class="fw-bold text-danger">${totalBeyondPT || '-'}</td>
+            <td class="fw-bold text-warning">${d.beyondPTDays || '-'}</td>
+          </tr>
+        `;
+      });
+
+      let tfoot = document.getElementById('clearanceTimelineFoot');
+      tfoot.innerHTML = `
+        <tr class="table-dark text-white fw-bold">
+          <td>ANNUAL TOTAL</td>
+          <td>${totals.lessThan1}</td>
+          <td>${totals.d1}</td>
+          <td>${totals.d2}</td>
+          <td>${totals.d3}</td>
+          <td class="bg-success text-white">${totals.lessThan4}</td>
+          <td>${totals.d4}</td>
+          <td>${totals.d5}</td>
+          <td>${totals.d6}</td>
+          <td>${totals.d7}</td>
+          <td>${totals.lessThan15}</td>
+          <td>${totals.d15}</td>
+          <td>${totals.d16}</td>
+          <td>${totals.d17}</td>
+          <td>${totals.d18}</td>
+          <td>${totals.d19}</td>
+          <td>${totals.d20Plus}</td>
+          <td class="bg-success text-white">${totals.totalWithinPT}</td>
+          <td class="bg-danger text-white">${totals.totalBeyondPT}</td>
+          <td class="bg-warning text-dark">${totals.beyondPTDays}</td>
+        </tr>
+      `;
     }
 
     function renderTab5Dashboard() {
