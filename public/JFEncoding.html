@@ -617,7 +617,7 @@
     </div>
   </div>
 
-  <!-- EDIT RECORD MODAL -->
+  <!-- EDIT RECORD MODAL (WITH PASSWORD PROTECTED PERMIT/CLEARANCE NO.) -->
   <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
@@ -646,10 +646,19 @@
                 <label class="form-label">CONTACT NUMBER <span>*</span></label>
                 <input type="text" class="form-control text-uppercase" id="editContactNumber" required oninput="convertToUppercase(this)">
               </div>
+              
+              <!-- PERMIT/CLEARANCE NO. (READ-ONLY BY DEFAULT, UNLOCKED VIA PASSWORD) -->
               <div class="col-md-6">
                 <label class="form-label">PERMIT / CLEARANCE NO. <span>*</span></label>
-                <input type="text" class="form-control text-uppercase fw-bold" id="editDocumentNumber" required oninput="convertToUppercase(this)">
+                <div class="input-group">
+                  <input type="text" class="form-control text-uppercase fw-bold bg-light" id="editDocumentNumber" readonly required oninput="convertToUppercase(this)">
+                  <button class="btn btn-outline-danger" type="button" id="unlockDocNumBtn" onclick="unlockDocumentNumber()" title="Unlock with Password">
+                    <i class="bi bi-lock-fill" id="unlockDocNumIcon"></i> UNLOCK
+                  </button>
+                </div>
+                <small class="text-muted" style="font-size: 0.7rem;" id="docNumLockStatus"><i class="bi bi-shield-lock me-1"></i>LOCKED (REQUIRES AUTHORIZATION TO CHANGE)</small>
               </div>
+
               <div class="col-md-6">
                 <label class="form-label">JOB FAIR VENUE <span>*</span></label>
                 <input type="text" class="form-control text-uppercase" id="editJobFairVenue" required oninput="convertToUppercase(this)">
@@ -1098,6 +1107,45 @@
       }).join('');
     }
 
+    // LOCK / UNLOCK PERMIT & CLEARANCE NO. WITH PASSWORD
+    function lockDocumentNumberField() {
+      const docInput = document.getElementById('editDocumentNumber');
+      const lockBtn = document.getElementById('unlockDocNumBtn');
+      const lockStatus = document.getElementById('docNumLockStatus');
+      if (docInput && lockBtn && lockStatus) {
+        docInput.setAttribute('readonly', 'readonly');
+        docInput.classList.add('bg-light');
+        lockBtn.className = "btn btn-outline-danger";
+        lockBtn.innerHTML = '<i class="bi bi-lock-fill"></i> UNLOCK';
+        lockStatus.className = "text-muted";
+        lockStatus.innerHTML = '<i class="bi bi-shield-lock me-1"></i>LOCKED (REQUIRES AUTHORIZATION TO CHANGE)';
+      }
+    }
+
+    function unlockDocumentNumber() {
+      const docInput = document.getElementById('editDocumentNumber');
+      const lockBtn = document.getElementById('unlockDocNumBtn');
+      const lockStatus = document.getElementById('docNumLockStatus');
+
+      if (docInput.hasAttribute('readonly')) {
+        const pwd = prompt("ENTER AUTHORIZED PASSWORD TO UNLOCK PERMIT/CLEARANCE NO.:");
+        if (pwd === "dole4a@2026") {
+          docInput.removeAttribute('readonly');
+          docInput.classList.remove('bg-light');
+          docInput.focus();
+          lockBtn.className = "btn btn-success";
+          lockBtn.innerHTML = '<i class="bi bi-unlock-fill"></i> UNLOCKED';
+          lockStatus.className = "text-success fw-bold";
+          lockStatus.innerHTML = '<i class="bi bi-shield-check me-1"></i>UNLOCKED FOR EDITING';
+          showScreenAlert("PERMIT/CLEARANCE NO. FIELD UNLOCKED FOR EDITING.", "success");
+        } else if (pwd !== null) {
+          showScreenAlert("INCORRECT PASSWORD! AUTHORIZATION DENIED.", "danger");
+        }
+      } else {
+        lockDocumentNumberField();
+      }
+    }
+
     // EDIT RECORD HANDLER & MODAL TRIGGER
     function editRecord(rowIndex) {
       const record = tab3DetailedRecords.find(r => (r._rowIndex || r.rowIndex) == rowIndex);
@@ -1105,6 +1153,9 @@
         showScreenAlert('RECORD NOT FOUND FOR EDITING.', 'danger');
         return;
       }
+
+      // Always reset lock status to read-only when opening modal
+      lockDocumentNumberField();
 
       document.getElementById('editRowIndex').value = record._rowIndex || record.rowIndex;
       document.getElementById('editReportingPeriod').value = record.reportingPeriod || record.month || record['REPORTING PERIOD'] || '';
