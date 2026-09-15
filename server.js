@@ -1,15 +1,11 @@
 // ==========================================
-// WEB APP ROUTING & ENTRY POINTS (Node.js / Express)
+// WEB APP ROUTING & ENTRY POINTS (Express)
 // ==========================================
 
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
-
 const {
-  getAllUsersMap,
-  getProvinceForMunicipality,
   getCurrentUserContext,
   isUserAuthorized
 } = require('./users');
@@ -22,17 +18,10 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Set your deployed Google Apps Script Web App URL here
-const GOOGLE_SHEETS_WEBHOOK_URL = process.env.GOOGLE_SHEETS_WEBHOOK_URL || 'https://script.google.com/macros/library/d/1kJ0Np_pJizbzeNvo-xmAz8_quc4LBWZv1IaCdn1KlP6lQKV2LsS9Peib/1';
-
-// Body parser middleware for handling form and JSON submissions
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files from 'public' folder (CSS, JS, images, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Page configuration matching GAS doGet pageConfig mapping
 const PAGE_CONFIG = {
   'login':           { files: ['login', 'Login'], title: 'DOLE Employment Program | CALABARZON' },
   'dashboard':       { files: ['Dashboard', 'dashboard', 'GIP', 'gip', 'Index'], title: 'Dashboard | CALABARZON' },
@@ -51,7 +40,6 @@ const VIEWS_DIR = path.join(__dirname, 'public');
 
 function getPageHtml(pageName) {
   const cleanName = String(pageName || '').trim().toLowerCase();
-  
   const fileMap = {
     'dashboard': ['Dashboard', 'dashboard'],
     'login': ['login', 'Login'],
@@ -103,6 +91,7 @@ function handleDoGet(req, res) {
   const output = tryRenderHtmlOutput(target.files, target.title);
   if (output) return res.send(output);
 
+  // Final fallback
   const loginOutput = tryRenderHtmlOutput(['login', 'Login', 'GIP', 'gip', 'Index'], 'Job Fair Report System | CALABARZON');
   if (loginOutput) return res.send(loginOutput);
 
@@ -111,10 +100,10 @@ function handleDoGet(req, res) {
   );
 }
 
-// Support root GET parameter ?page=...
+// Route mapping for GET ?page=...
 app.get('/', handleDoGet);
 
-// Support clean path routing (/login, /dashboard, /mer, etc.)
+// Route mapping for clean URLs like /login, /dashboard
 app.get('/:pageName', (req, res, next) => {
   const pageName = req.params.pageName.toLowerCase();
   if (PAGE_CONFIG[pageName]) {
@@ -124,7 +113,7 @@ app.get('/:pageName', (req, res, next) => {
   next();
 });
 
-// Helper Page Getters Routes
+// Helper route for raw HTML retrieval
 app.get('/html/:page', (req, res) => {
   try {
     const htmlContent = getPageHtml(req.params.page);
@@ -135,129 +124,210 @@ app.get('/html/:page', (req, res) => {
 });
 
 // ==========================================
-// API ENDPOINTS (AUTHENTICATION & USER CONTEXT)
+// API ENDPOINTS
 // ==========================================
 
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
-  const result = authenticateUser(username, password);
-  res.json(result);
+  res.json(authenticateUser(username, password));
 });
 
 app.post('/api/auth/change-password', (req, res) => {
   const { username, currentPassword, newPassword } = req.body;
-  const result = changeUserPassword(username, currentPassword, newPassword);
-  res.json(result);
+  res.json(changeUserPassword(username, currentPassword, newPassword));
 });
 
 app.post('/api/auth/reset-password', (req, res) => {
   const { username } = req.body;
-  const result = resetUserPassword(username);
-  res.json(result);
+  res.json(resetUserPassword(username));
 });
 
 app.get('/api/user/context', (req, res) => {
-  const username = req.query.username;
-  const context = getCurrentUserContext(username);
-  res.json(context);
+  res.json(getCurrentUserContext(req.query.username));
 });
 
 app.get('/api/user/authorized', (req, res) => {
-  const email = req.query.email;
-  const authorized = isUserAuthorized(email);
-  res.json({ email, authorized });
+  res.json({ email: req.query.email, authorized: isUserAuthorized(req.query.email) });
 });
 
-app.get('/api/script-url', (req, res) => {
-  const fullUrl = `${req.protocol}://${req.get('host')}`;
-  res.json({ url: fullUrl });
+app.listen(PORT, () => {
+  console.log(`DOLE CALABARZON Express Server listening on port ${PORT}`);
 });
 
+
 // ==========================================
-// API ENDPOINTS (JOB FAIR ENCODING & GOOGLE SHEETS)
+// JOB FAIR ENCODING & RECORDS BACKEND MODULE
 // ==========================================
 
-// Fetch records from Google Sheet
-app.get('/api/jf/records', async (req, res) => {
+
+const JF_DB_PATH = path.join(__dirname, 'jf_records.json');
+
+// Helper: Read persistent records JSON
+function getJfRecords() {
   try {
-    if (GOOGLE_SHEETS_WEBHOOK_URL.includes('YOUR_GOOGLE_APPS_SCRIPT')) {
-      return res.json({ status: 'warning', message: 'Webhook URL not configured yet', records: [] });
+    if (fs.existsSync(JF_DB_PATH)) {
+      return JSON.parse(fs.readFileSync(JF_DB_PATH, 'utf8'));
     }
-    const response = await axios.get(GOOGLE_SHEETS_WEBHOOK_URL);
-    res.json({ status: 'success', records: response.data || [] });
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message, records: [] });
+    console.error("Error reading JF database file:", err.message);
   }
+  return [];
+}
+
+// Helper: Save persistent records JSON
+function saveJfRecords(records) {
+  try {
+    fs.writeFileSync(JF_DB_PATH, JSON.stringify(records, null, 2), 'utf8');
+  } catch (err) {
+    console.error("Error writing JF database file:", err.message);
+  }
+}
+
+// API: Get All Records (Tab 3 & Tab 6)
+app.get('/api/jf/records', (req, res) => {
+  const records = getJfRecords();
+  res.json(records);
 });
 
-// Save a new Job Fair Encoding Record
-app.post('/api/jf/encode', async (req, res) => {
-  try {
-    const recordData = req.body;
-    const response = await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, {
-      action: 'create',
-      data: recordData
-    });
-    res.json(response.data);
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
-  }
+// API: Get JF Summary Data (Tab 2)
+app.get('/api/jf/summary', (req, res) => {
+  const records = getJfRecords();
+  res.json(records);
 });
 
-// Update an existing record by row index
-app.post('/api/jf/update-record', async (req, res) => {
+// API: Save New Encoded Record (Tab 1)
+app.post('/api/jf/encode', (req, res) => {
   try {
-    const { rowIndex, data } = req.body;
-    const response = await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, {
-      action: 'update',
-      rowIndex,
-      data
-    });
-    res.json(response.data);
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
-  }
-});
+    const formData = req.body;
+    const records = getJfRecords();
 
-// Delete a record by row index
-app.post('/api/jf/delete-record', async (req, res) => {
-  try {
-    const { rowIndex } = req.body;
-    const response = await axios.post(GOOGLE_SHEETS_WEBHOOK_URL, {
-      action: 'delete',
-      rowIndex
-    });
-    res.json(response.data);
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
-  }
-});
-
-// Summary Endpoint
-app.get('/api/jf/summary', async (req, res) => {
-  try {
-    const response = await axios.get(GOOGLE_SHEETS_WEBHOOK_URL);
-    const records = Array.isArray(response.data) ? response.data : [];
-    
-    const summary = {
-      totalRecords: records.length,
-      byOffice: {}
+    const now = new Date();
+    const newRecord = {
+      rowIndex: Date.now(), // Unique ID / Row Index
+      timestamp: now.toISOString().replace('T', ' ').substring(0, 19),
+      year: now.getFullYear().toString(),
+      month: formData.reportingPeriod || "JANUARY",
+      province: formData.fieldOffice || "BATANGAS FIELD OFFICE",
+      reportingPeriod: formData.reportingPeriod || "",
+      fieldOffice: formData.fieldOffice || "",
+      sponsor: formData.sponsor || "",
+      contactNumber: formData.contactNumber || "",
+      dateOfJobFair: formData.dateOfJobFair || "",
+      dateFiled: formData.dateFiled || "",
+      dateReceived: formData.dateFiled || "",
+      jobFairVenue: formData.jobFairVenue || "",
+      documentApplied: formData.documentApplied || "",
+      actionTaken: formData.actionTaken || "APPROVED",
+      disapprovedReason: formData.disapprovedReason || "N/A",
+      documentNumber: formData.documentNumber || "",
+      dateIssued: formData.dateIssued || "",
+      entitiesOverseas: formData.entitiesOverseas || "0",
+      entitiesLocal: formData.entitiesLocal || "0",
+      vacanciesOverseas: formData.vacanciesOverseas || "0",
+      vacanciesLocal: formData.vacanciesLocal || "0",
+      proofReceivedUrl: "",
+      proofReleasedUrl: ""
     };
 
-    records.forEach(rec => {
-      const office = rec['FIELD OFFICE'] || rec['Field Office'] || 'UNKNOWN';
-      summary.byOffice[office] = (summary.byOffice[office] || 0) + 1;
-    });
+    records.push(newRecord);
+    saveJfRecords(records);
 
-    res.json({ status: 'success', summary });
+    res.json({
+      success: true,
+      message: "Job Fair Record saved successfully!"
+    });
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ==========================================
-// START SERVER (Must be placed at the end)
-// ==========================================
-app.listen(PORT, () => {
-  console.log(`DOLE CALABARZON Server listening on port ${PORT}`);
+// API: Update Record (Edit Modal)
+app.post('/api/jf/update-record', (req, res) => {
+  try {
+    const { rowIndex, sponsor, jobFairVenue, dateOfJobFair, dateFiled, dateReceived, documentNumber } = req.body;
+    let records = getJfRecords();
+
+    const idx = records.findIndex(r => r.rowIndex == rowIndex);
+    if (idx !== -1) {
+      if (sponsor) records[idx].sponsor = sponsor;
+      if (jobFairVenue) records[idx].jobFairVenue = jobFairVenue;
+      if (dateOfJobFair) records[idx].dateOfJobFair = dateOfJobFair;
+      if (dateFiled) records[idx].dateFiled = dateFiled;
+      if (dateReceived) records[idx].dateReceived = dateReceived;
+      if (documentNumber) records[idx].documentNumber = documentNumber;
+
+      saveJfRecords(records);
+      return res.json({ success: true, message: "Record updated successfully!" });
+    }
+
+    res.status(404).json({ success: false, message: "Record not found." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API: Delete Record (Delete Modal)
+app.post('/api/jf/delete-record', (req, res) => {
+  try {
+    const { rowIndex } = req.body;
+    let records = getJfRecords();
+
+    const initialLength = records.length;
+    records = records.filter(r => r.rowIndex != rowIndex);
+
+    if (records.length < initialLength) {
+      saveJfRecords(records);
+      return res.json({ success: true, message: "Record deleted successfully!" });
+    }
+
+    res.status(404).json({ success: false, message: "Record not found." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API: Get KFS Timeline Breakdown (Tab 4)
+app.get('/api/jf/tab4-breakdown', (req, res) => {
+  try {
+    const records = getJfRecords();
+    const clearanceRecords = [];
+    const permitRecords = [];
+
+    records.forEach(r => {
+      const doc = (r.documentApplied || "").toUpperCase();
+      let days = null;
+
+      if (r.dateFiled && r.dateIssued) {
+        const d1 = new Date(r.dateFiled);
+        const d2 = new Date(r.dateIssued);
+        if (!isNaN(d1) && !isNaN(d2)) {
+          days = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+        }
+      }
+
+      const item = {
+        month: r.reportingPeriod || r.month || "JANUARY",
+        year: r.year || "2026",
+        province: r.fieldOffice || r.province || "BATANGAS",
+        actionTaken: r.actionTaken || "APPROVED",
+        clearanceNo: r.documentNumber || "",
+        documentNumber: r.documentNumber || "",
+        days: days
+      };
+
+      if (doc.includes("PERMIT")) {
+        permitRecords.push(item);
+      } else {
+        clearanceRecords.push(item);
+      }
+    });
+
+    res.json({
+      success: true,
+      clearanceRecords,
+      permitRecords
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
