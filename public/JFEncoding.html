@@ -408,11 +408,12 @@
         <li class="nav-item">
           <button class="nav-link" id="tab-3" data-bs-toggle="tab" data-bs-target="#content-3" type="button">JF DATABASE</button>
         </li>
-        <!-- KFS SUMMARY TAB (RESTRICTED ACCESS - VISIBLE FOR DOLE4A LOGGED IN USERS) -->
+        <!-- KFS SUMMARY TAB (RESTRICTED ACCESS - ONLY VISIBLE IF LOGGED IN USER IS DOLE4A) -->
         <li class="nav-item" id="tab4NavItem" style="display: none;">
           <button class="nav-link" id="tab-4" data-bs-toggle="tab" data-bs-target="#content-4" type="button" onclick="checkTab4Access(event)">KFS SUMMARY</button>
         </li>
-        <li class="nav-item">
+        <!-- BLE JF REPORT TAB (RESTRICTED ACCESS - ONLY VISIBLE IF LOGGED IN USER IS DOLE4A) -->
+        <li class="nav-item" id="tab5NavItem" style="display: none;">
           <button class="nav-link" id="tab-5" data-bs-toggle="tab" data-bs-target="#content-5" type="button" onclick="checkTab5Access(event)">BLE JF REPORT</button>
         </li>
         <li class="nav-item">
@@ -1322,7 +1323,7 @@
 
     window.addEventListener('DOMContentLoaded', function() {
       initLoggedInUser();
-      checkKfsTabVisibility();
+      checkRestrictedTabsVisibility();
       populateYearDropdowns();
       fetchAndRenderTab3Data();
 
@@ -1411,6 +1412,8 @@
       const roleEl = document.getElementById('sidebarUserRole');
       if (nameEl) nameEl.innerText = finalUsername;
       if (roleEl) roleEl.innerText = finalUsername;
+
+      checkRestrictedTabsVisibility();
     }
 
     function promptChangeUsername() {
@@ -1421,13 +1424,18 @@
         localStorage.setItem('username', clean);
         sessionStorage.setItem('username', clean);
         initLoggedInUser();
+        checkRestrictedTabsVisibility();
       }
     }
 
-    // FLEXIBLE DOLE4A USER DETECTION ACROSS LOGINS & STORAGE
+    // STRICT DOLE4A USER DETECTION (ONLY RETURNS TRUE IF USER IS DOLE4A / REGIONAL RO4A)
     function isDole4aUser() {
-      const keys = ['userContext', 'currentUser', 'username', 'user', 'userRole', 'loggedUser', 'loginUser'];
+      const keys = ['username', 'userContext', 'currentUser', 'user', 'userRole', 'loggedUser', 'loginUser'];
       let foundUserStrings = [];
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUser = urlParams.get('username') || urlParams.get('user') || urlParams.get('office');
+      if (urlUser) foundUserStrings.push(urlUser);
 
       keys.forEach(k => {
         const sVal = sessionStorage.getItem(k);
@@ -1443,26 +1451,65 @@
 
       for (let str of foundUserStrings) {
         if (!str) continue;
-        const upper = String(str).toUpperCase();
-        if (upper.includes("DOLE4A") || upper.includes("DOLE 4A") || upper.includes("DOLE-4A") || upper.includes("DOLE_4A") || upper.includes("DOLE REGION IV-A") || upper.includes("ROIVA") || upper.includes("ADMIN")) {
+        let upper = "";
+        try {
+          const parsed = typeof str === 'string' && str.startsWith('{') ? JSON.parse(str) : str;
+          if (typeof parsed === 'object' && parsed !== null) {
+            upper = (parsed.username || parsed.name || parsed.office || parsed.role || "").toUpperCase();
+          } else {
+            upper = String(str).toUpperCase();
+          }
+        } catch(e) {
+          upper = String(str).toUpperCase();
+        }
+
+        if (upper.includes("DOLE4A") || upper.includes("DOLE 4A") || upper.includes("DOLE-4A") || upper.includes("DOLE_4A") || upper.includes("DOLE REGION IV-A") || upper.includes("ROIVA")) {
           return true;
         }
-        try {
-          const parsed = typeof str === 'string' ? JSON.parse(str) : str;
-          const combo = (parsed.username || parsed.name || parsed.municipality || parsed.role || parsed.email || "").toUpperCase();
-          if (combo.includes("DOLE4A") || combo.includes("DOLE 4A") || combo.includes("DOLE-4A") || combo.includes("DOLE_4A") || combo.includes("DOLE REGION IV-A") || combo.includes("ROIVA") || combo.includes("ADMIN")) {
-            return true;
-          }
-        } catch(e) {}
       }
 
-      return true;
+      // Default: Return FALSE for all other users (e.g. CALAMBA, SANTAROSA, CAVITE, BATANGAS, QUEZON, RIZAL)
+      return false;
     }
 
-    function checkKfsTabVisibility() {
+    // CONTROL VISIBILITY OF TAB 4 (KFS SUMMARY) AND TAB 5 (BLE JF REPORT)
+    function checkRestrictedTabsVisibility() {
+      const isDole4a = isDole4aUser();
+      
       const tab4Item = document.getElementById('tab4NavItem');
-      if (tab4Item) {
-        tab4Item.style.display = isDole4aUser() ? 'block' : 'none';
+      const tab5Item = document.getElementById('tab5NavItem');
+
+      if (tab4Item) tab4Item.style.display = isDole4a ? 'block' : 'none';
+      if (tab5Item) tab5Item.style.display = isDole4a ? 'block' : 'none';
+
+      // If non-DOLE4A user tries to access Tab 4 or Tab 5, switch them to Tab 1
+      if (!isDole4a) {
+        const activeTabBtn = document.querySelector('#appTabs .nav-link.active');
+        if (activeTabBtn && (activeTabBtn.id === 'tab-4' || activeTabBtn.id === 'tab-5')) {
+          activateTab('#tab-1');
+        }
+      }
+    }
+
+    function checkTab4Access(event) {
+      if (!isDole4aUser()) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        showScreenAlert("ACCESS RESTRICTED: KFS SUMMARY IS ONLY VISIBLE TO DOLE4A USER.", "danger");
+        activateTab('#tab-1');
+      }
+    }
+
+    function checkTab5Access(event) {
+      if (!isDole4aUser()) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        showScreenAlert("ACCESS RESTRICTED: BLE JF REPORT IS ONLY VISIBLE TO DOLE4A USER.", "danger");
+        activateTab('#tab-1');
       }
     }
 
@@ -2922,7 +2969,7 @@
       const details = encodeURIComponent(`DOLE RO4A Job Fair Schedule\nOrganizer: ${organizer}\nVenue: ${venue}\nContact: ${contact}`);
       const location = encodeURIComponent(venue);
 
-      const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${datesParam}&details=${details}&location=${location}`;
+      const calUrl = `https://calendar.google.acom/calendar/render?action=TEMPLATE&text=${title}&dates=${datesParam}&details=${details}&location=${location}`;
       window.open(calUrl, '_blank');
     }
 
