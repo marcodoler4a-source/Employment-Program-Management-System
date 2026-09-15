@@ -179,6 +179,16 @@
       padding: 20px 24px;
       margin-top: 15px;
       margin-bottom: 20px;
+      width: 100%;
+    }
+    .encoding-section-partition {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #0d6efd;
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
     }
     .section-divider {
       border: 0;
@@ -186,6 +196,7 @@
       background-color: #0d6efd;
       opacity: 0.2;
       margin: 15px 0;
+      width: 100%;
     }
     table { font-size: 0.8rem !important; }
     th, td { padding: 6px 8px !important; }
@@ -342,168 +353,207 @@
     <div class="container-fluid px-4">
       <div class="tab-content" id="appTabsContent">
         
-        <!-- TAB 1: Encoding Form -->
+        <!-- TAB 1: Encoding Form (FULL WIDTH PARTITION SECTIONS) -->
         <div class="tab-pane fade show active" id="content-1" role="tabpanel">
-          <div class="content-card">
+          <div class="content-card w-100">
             <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;">💻 ENCODE NEW JOB FAIR CLEARANCE/PERMIT</h3>
-            <form id="encodingForm" onsubmit="handleFormSubmit(event)">
-              <div class="section-badge">SECTION 1 OF 3</div>
-              <div class="form-title">GENERAL INFORMATION</div>
+            <form id="encodingForm" onsubmit="handleFormSubmit(event)" class="w-100">
               
-              <div class="row g-2">
-                <div class="col-md-6">
-                  <label class="form-label">REPORTING PERIOD <span>*</span></label>
-                  <input type="text" class="form-control text-uppercase" id="reportingPeriod" required oninput="convertToUppercase(this)">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">FIELD OFFICE <span>*</span></label>
-                  <select class="form-select text-uppercase" id="fieldOffice" required onchange="updateSponsorsAndNumber()">
-                    <option value="" selected disabled>-- SELECT FIELD OFFICE --</option>
-                    <option value="BATANGAS FIELD OFFICE">BATANGAS FIELD OFFICE</option>
-                    <option value="CAVITE FIELD OFFICE">CAVITE FIELD OFFICE</option>
-                    <option value="LAGUNA FIELD OFFICE">LAGUNA FIELD OFFICE</option>
-                    <option value="QUEZON FIELD OFFICE">QUEZON FIELD OFFICE</option>
-                    <option value="RIZAL FIELD OFFICE">RIZAL FIELD OFFICE</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">SPONSOR / ORGANIZER <span>*</span></label>
-                  <select class="form-select text-muted text-uppercase" id="sponsor" required>
-                    <option selected disabled>-- SELECT FIELD OFFICE FIRST --</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">CONTACT NUMBER <span>*</span></label>
-                  <input type="text" class="form-control text-uppercase" id="contactNumber" placeholder="YOUR ANSWER" required oninput="convertToUppercase(this)">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">DATE OF JOB FAIR <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateOfJobFair" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">JOB FAIR VENUE <span>*</span></label>
-                  <input type="text" class="form-control text-uppercase" id="jobFairVenue" placeholder="YOUR ANSWER" required oninput="convertToUppercase(this)">
-                </div>
-              </div>
-              
-              <hr class="section-divider">
-              <div class="section-badge">SECTION 2 OF 3</div>
-              <div class="form-title">APPLICATION DETAILS & PROOF ATTACHMENTS</div>
-              <div class="row g-2">
-                <div class="col-md-6">
-                  <label class="form-label">JOB FAIR DOCUMENT APPLIED <span>*</span></label>
-                  <div class="mt-1">
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="documentApplied" id="docPermit" value="JOB FAIR PERMIT" required onchange="updateNumberFormat()">
-                      <label class="form-check-label" for="docPermit">JOB FAIR PERMIT</label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="documentApplied" id="docClearance" value="JOB FAIR CLEARANCE" required onchange="updateNumberFormat()">
-                      <label class="form-check-label" for="docClearance">JOB FAIR CLEARANCE</label>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">ACTION TAKEN <span>*</span></label>
-                  <div class="mt-1">
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="actionTaken" id="actionApproved" value="APPROVED" required onchange="toggleDisapprovedReason()">
-                      <label class="form-check-label" for="actionApproved">APPROVED</label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="actionTaken" id="actionDisapproved" value="DISAPPROVED" required onchange="toggleDisapprovedReason()">
-                      <label class="form-check-label" for="actionDisapproved">DISAPPROVED</label>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-12">
-                  <label class="form-label">REASON IF DISAPPROVED <span>*</span></label>
-                  <input type="text" class="form-control text-uppercase" id="disapprovedReason" value="N/A" required oninput="convertToUppercase(this)">
-                </div>
-                <div class="col-12">
-                  <label class="form-label">PERMIT / CLEARANCE NO. <span>*</span></label>
-                  <div class="text-muted mb-1" style="font-size: 0.75rem;" id="formatGuide">FORMAT: SELECT DOCUMENT TYPE AND FIELD OFFICE FIRST</div>
-                  <div class="row g-2 align-items-center">
-                    <div class="col-md-3">
-                      <input type="text" class="form-control bg-light fw-bold text-center text-uppercase" id="numPrefix" readonly placeholder="PREFIX">
-                    </div>
-                    <div class="col-md-3">
-                      <input type="text" class="form-control text-center bg-light text-uppercase" id="numMiddle" readonly placeholder="YYYY-MM">
-                    </div>
-                    <div class="col-md-3" id="extraGroupContainer">
-                      <input type="text" class="form-control text-center bg-light text-uppercase" id="numExtra" readonly placeholder="YY">
-                    </div>
-                    <div class="col-md-3">
-                      <input type="text" class="form-control text-center text-uppercase" id="numDigit" placeholder="001" maxlength="3" required oninput="convertToUppercase(this)">
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">DATE FILED <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateFiled" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">DATE ISSUED <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateIssued" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">DATE OF ENCODING <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateOfEncoding" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
-                </div>
-
-                <!-- PDF / PROOF UPLOAD FIELDS -->
-                <div class="col-md-6 mt-2">
-                  <label class="form-label">UPLOAD PROOF OF DATE APPLICATION RECEIVED <small class="text-muted">(PDF/IMAGE)</small></label>
-                  <input type="file" class="form-control" id="proofReceivedFile" accept=".pdf,image/*">
-                </div>
-                <div class="col-md-6 mt-2">
-                  <label class="form-label">UPLOAD PROOF OF DATE JFP/JFC RELEASED <small class="text-muted">(PDF/IMAGE)</small></label>
-                  <input type="file" class="form-control" id="proofReleasedFile" accept=".pdf,image/*">
-                </div>
-              </div>
-
-              <hr class="section-divider">
-              <div class="section-badge">SECTION 3 OF 3</div>
-              <div class="form-title">COMPUTED TIMELINE & TURNAROUND METRICS</div>
-              <div class="row g-2">
-                <div class="col-md-4">
-                  <label class="form-label">TURNAROUND TIME (DAYS) <small class="text-muted">(Filed vs Issued less Sat/Sun/Holidays)</small></label>
-                  <input type="text" class="form-control bg-light fw-bold text-primary" id="turnaroundTime" readonly placeholder="0 DAYS">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">NO. DAYS FILED BEFORE JF <small class="text-muted">(Job Fair Date vs Date Filed)</small></label>
-                  <input type="text" class="form-control bg-light fw-bold text-success" id="daysFiledBeforeJF" readonly placeholder="0 DAYS">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">NO. DAYS REPORTED <small class="text-muted">(Encoding Date vs Date Filed)</small></label>
-                  <input type="text" class="form-control bg-light fw-bold text-info" id="daysReported" readonly placeholder="0 DAYS">
-                </div>
+              <!-- SECTION 1 PARTITION - FULL WIDTH -->
+              <div class="encoding-section-partition shadow-sm w-100">
+                <div class="section-badge">SECTION 1 OF 3</div>
+                <div class="form-title">GENERAL INFORMATION</div>
                 
-                <div class="col-12 mt-3 d-flex gap-2">
-                  <button type="submit" class="btn btn-success w-75 py-2 fw-bold shadow-sm" id="submitBtn">SUBMIT RECORD</button>
-                  <button type="reset" class="btn btn-light border w-25 py-2 text-secondary fw-bold" onclick="resetFormWithDate()">CLEAR FORM</button>
+                <div class="row g-3 w-100 m-0">
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">REPORTING PERIOD <span>*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="reportingPeriod" required oninput="convertToUppercase(this)">
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">FIELD OFFICE <span>*</span></label>
+                    <select class="form-select text-uppercase" id="fieldOffice" required onchange="updateSponsorsAndNumber()">
+                      <option value="" selected disabled>-- SELECT FIELD OFFICE --</option>
+                      <option value="BATANGAS FIELD OFFICE">BATANGAS FIELD OFFICE</option>
+                      <option value="CAVITE FIELD OFFICE">CAVITE FIELD OFFICE</option>
+                      <option value="LAGUNA FIELD OFFICE">LAGUNA FIELD OFFICE</option>
+                      <option value="QUEZON FIELD OFFICE">QUEZON FIELD OFFICE</option>
+                      <option value="RIZAL FIELD OFFICE">RIZAL FIELD OFFICE</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">SPONSOR / ORGANIZER <span>*</span></label>
+                    <select class="form-select text-muted text-uppercase" id="sponsor" required>
+                      <option selected disabled>-- SELECT FIELD OFFICE FIRST --</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">CONTACT NUMBER <span>*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="contactNumber" placeholder="YOUR ANSWER" required oninput="convertToUppercase(this)">
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">DATE OF JOB FAIR <span>*</span></label>
+                    <input type="date" class="form-control text-muted" id="dateOfJobFair" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">JOB FAIR VENUE <span>*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="jobFairVenue" placeholder="YOUR ANSWER" required oninput="convertToUppercase(this)">
+                  </div>
                 </div>
               </div>
+
+              <!-- SECTION 2 PARTITION - FULL WIDTH -->
+              <div class="encoding-section-partition shadow-sm w-100">
+                <div class="section-badge">SECTION 2 OF 3</div>
+                <div class="form-title">APPLICATION DETAILS & PROOF ATTACHMENTS</div>
+                <div class="row g-3 w-100 m-0">
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">JOB FAIR DOCUMENT APPLIED <span>*</span></label>
+                    <div class="mt-1">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="documentApplied" id="docPermit" value="JOB FAIR PERMIT" required onchange="updateNumberFormat()">
+                        <label class="form-check-label" for="docPermit">JOB FAIR PERMIT</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="documentApplied" id="docClearance" value="JOB FAIR CLEARANCE" required onchange="updateNumberFormat()">
+                        <label class="form-check-label" for="docClearance">JOB FAIR CLEARANCE</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">ACTION TAKEN <span>*</span></label>
+                    <div class="mt-1">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="actionTaken" id="actionApproved" value="APPROVED" required onchange="toggleDisapprovedReason()">
+                        <label class="form-check-label" for="actionApproved">APPROVED</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="actionTaken" id="actionDisapproved" value="DISAPPROVED" required onchange="toggleDisapprovedReason()">
+                        <label class="form-check-label" for="actionDisapproved">DISAPPROVED</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12 px-1">
+                    <label class="form-label">REASON IF DISAPPROVED <span>*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="disapprovedReason" value="N/A" required oninput="convertToUppercase(this)">
+                  </div>
+                  <div class="col-12 px-1">
+                    <label class="form-label">PERMIT / CLEARANCE NO. <span>*</span></label>
+                    <div class="text-muted mb-1" style="font-size: 0.75rem;" id="formatGuide">FORMAT: SELECT DOCUMENT TYPE AND FIELD OFFICE FIRST</div>
+                    <div class="row g-2 align-items-center w-100 m-0">
+                      <div class="col-md-3 px-1">
+                        <input type="text" class="form-control bg-light fw-bold text-center text-uppercase" id="numPrefix" readonly placeholder="PREFIX">
+                      </div>
+                      <div class="col-md-3 px-1">
+                        <input type="text" class="form-control text-center bg-light text-uppercase" id="numMiddle" readonly placeholder="YYYY-MM">
+                      </div>
+                      <div class="col-md-3 px-1" id="extraGroupContainer">
+                        <input type="text" class="form-control text-center bg-light text-uppercase" id="numExtra" readonly placeholder="YY">
+                      </div>
+                      <div class="col-md-3 px-1">
+                        <input type="text" class="form-control text-center text-uppercase" id="numDigit" placeholder="001" maxlength="3" required oninput="convertToUppercase(this)">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">DATE FILED <span>*</span></label>
+                    <input type="date" class="form-control text-muted" id="dateFiled" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">DATE ISSUED <span>*</span></label>
+                    <input type="date" class="form-control text-muted" id="dateIssued" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">DATE OF ENCODING <span>*</span></label>
+                    <input type="date" class="form-control text-muted" id="dateOfEncoding" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
+                  </div>
+
+                  <!-- PDF / PROOF UPLOAD FIELDS -->
+                  <div class="col-md-6 px-1 mt-2">
+                    <label class="form-label">UPLOAD PROOF OF DATE APPLICATION RECEIVED <small class="text-muted">(PDF/IMAGE)</small></label>
+                    <input type="file" class="form-control" id="proofReceivedFile" accept=".pdf,image/*">
+                  </div>
+                  <div class="col-md-6 px-1 mt-2">
+                    <label class="form-label">UPLOAD PROOF OF DATE JFP/JFC RELEASED <small class="text-muted">(PDF/IMAGE)</small></label>
+                    <input type="file" class="form-control" id="proofReleasedFile" accept=".pdf,image/*">
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION 3 PARTITION - FULL WIDTH -->
+              <div class="encoding-section-partition shadow-sm w-100 mb-0">
+                <div class="section-badge">SECTION 3 OF 3</div>
+                <div class="form-title">COMPUTED TIMELINE & TURNAROUND METRICS</div>
+                <div class="row g-3 w-100 m-0">
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">TURNAROUND TIME (DAYS) <small class="text-muted">(Filed vs Issued less Sat/Sun/Holidays)</small></label>
+                    <input type="text" class="form-control bg-light fw-bold text-primary" id="turnaroundTime" readonly placeholder="0 DAYS">
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">NO. DAYS FILED BEFORE JF <small class="text-muted">(Job Fair Date vs Date Filed)</small></label>
+                    <input type="text" class="form-control bg-light fw-bold text-success" id="daysFiledBeforeJF" readonly placeholder="0 DAYS">
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">NO. DAYS REPORTED <small class="text-muted">(Encoding Date vs Date Filed)</small></label>
+                    <input type="text" class="form-control bg-light fw-bold text-info" id="daysReported" readonly placeholder="0 DAYS">
+                  </div>
+                  
+                  <div class="col-12 px-1 mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-success w-75 py-2 fw-bold shadow-sm" id="submitBtn">SUBMIT RECORD</button>
+                    <button type="reset" class="btn btn-light border w-25 py-2 text-secondary fw-bold" onclick="resetFormWithDate()">CLEAR FORM</button>
+                  </div>
+                </div>
+              </div>
+
             </form>
           </div>
         </div>
 
-        <!-- TAB 2: Summary Matrix -->
+        <!-- TAB 2: Summary Matrix (WITH DROPDOWN FILTERS FOR PROVINCE & YEAR + DEDUPLICATED APPROVED COUNT ONLY) -->
         <div class="tab-pane fade" id="content-2" role="tabpanel">
           <div class="content-card">
-            <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;">📊 JOB FAIR SUMMARY TABLE</h3>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h3 class="text-primary fw-bold mb-0" style="font-size: 1.15rem;">📊 JOB FAIR SUMMARY TABLE</h3>
+              <span class="badge bg-success px-3 py-2 fs-6"><i class="bi bi-check-circle-fill me-1"></i> APPROVED & DEDUPLICATED RECORDS ONLY</span>
+            </div>
+
+            <!-- INTERACTIVE SUMMARY FILTERS -->
+            <div class="bg-light p-3 rounded mb-3 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold mb-1">PROVINCE / FIELD OFFICE</label>
+                  <select class="form-select form-select-sm" id="filterSummaryProvince" onchange="filterSummaryTable()">
+                    <option value="">ALL PROVINCES</option>
+                    <option value="BATANGAS">BATANGAS</option>
+                    <option value="CAVITE">CAVITE</option>
+                    <option value="LAGUNA">LAGUNA</option>
+                    <option value="QUEZON">QUEZON</option>
+                    <option value="RIZAL">RIZAL</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold mb-1">YEAR (AUTO-SELECTED TODAY)</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterSummaryYear" onchange="filterSummaryTable()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                  <button class="btn btn-outline-secondary btn-sm w-100 fw-bold" onclick="resetSummaryFilters()">RESET FILTERS</button>
+                </div>
+              </div>
+            </div>
+
             <div class="table-responsive">
               <table class="table table-bordered table-striped align-middle text-center" id="summaryTable">
                 <thead class="table-light fw-bold">
                   <tr>
-                    <th rowspan="2">MONTH</th>
+                    <th rowspan="2" class="align-middle">MONTH</th>
                     <th colspan="2">BATANGAS</th>
                     <th colspan="2">CAVITE</th>
                     <th colspan="2">LAGUNA</th>
                     <th colspan="2">QUEZON</th>
                     <th colspan="2">RIZAL</th>
-                    <th rowspan="2">TOTAL JFP</th>
-                    <th rowspan="2">TOTAL JFC</th>
+                    <th rowspan="2" class="align-middle bg-warning-subtle">TOTAL JFP</th>
+                    <th rowspan="2" class="align-middle bg-info-subtle">TOTAL JFC</th>
                   </tr>
                   <tr>
                     <th>PERMIT</th><th>CLEARANCE</th>
@@ -520,11 +570,11 @@
           </div>
         </div>
 
-        <!-- TAB 3: Database Report (WITH FILTER DROPDOWNS & PROOF COLUMNS) -->
+        <!-- TAB 3: Database Report (WITH AUTO-YEAR FILTER & SORT LATEST TO EARLIEST) -->
         <div class="tab-pane fade" id="content-3" role="tabpanel">
           <div class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
-              <h3 class="text-primary fw-bold mb-0" style="font-size: 1.15rem;">💾 JF DATABASE</h3>
+              <h3 class="text-primary fw-bold mb-0" style="font-size: 1.15rem;">💾 JF DATABASE <small class="text-muted fs-6">(SORTED: LATEST TO EARLIEST)</small></h3>
               <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="downloadTab3Excel()">
                 <i class="bi bi-download me-1"></i> DOWNLOAD EXCEL
               </button>
@@ -563,13 +613,9 @@
                   </select>
                 </div>
                 <div class="col-md-2">
-                  <label class="form-label small fw-bold mb-1">YEAR</label>
-                  <select class="form-select form-select-sm" id="filterYear" onchange="filterTab3Table()">
+                  <label class="form-label small fw-bold mb-1">YEAR (AUTO TODAY)</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterYear" onchange="filterTab3Table()">
                     <option value="">ALL YEARS</option>
-                    <option value="2024">2024</option>
-                    <option value="2025">2025</option>
-                    <option value="2026">2026</option>
-                    <option value="2027">2027</option>
                   </select>
                 </div>
                 <div class="col-md-2">
@@ -628,34 +674,110 @@
           </div>
         </div>
         
-        <!-- TAB 4: KFS Summary (TURNAROUND TIME BREAKDOWN PER MONTH) -->
+        <!-- TAB 4: KFS Summary (REFRESH METRICS + FILTERS + CLEARANCE & PERMIT TABLES) -->
         <div class="tab-pane fade" id="content-4" role="tabpanel">
           <div class="content-card">
-            <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;">📊 KFS SUMMARY METRICS (TURNAROUND TIME BREAKDOWN PER MONTH)</h3>
-            <div class="table-responsive">
-              <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
-                <thead class="table-primary text-white text-nowrap">
-                  <tr>
-                    <th rowspan="2" class="align-middle">MONTH</th>
-                    <th colspan="4" class="bg-success text-white">WITHIN PT (&le; 3 DAYS)</th>
-                    <th rowspan="2" class="bg-dark text-white align-middle">&lt; 4 (WITHIN PT)</th>
-                    <th colspan="4">4 TO 7 DAYS</th>
-                    <th rowspan="2" class="align-middle">&lt; 15</th>
-                    <th colspan="6">15 TO 20+ DAYS</th>
-                    <th rowspan="2" class="bg-success text-white align-middle">TOTAL WITHIN PT</th>
-                    <th rowspan="2" class="bg-danger text-white align-middle">TOTAL BEYOND PT</th>
-                    <th rowspan="2" class="bg-warning text-dark align-middle">BEYOND PT DAYS</th>
-                  </tr>
-                  <tr>
-                    <th>&lt; 1</th><th>1</th><th>2</th><th>3</th>
-                    <th>4</th><th>5</th><th>6</th><th>7</th>
-                    <th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20+</th>
-                  </tr>
-                </thead>
-                <tbody id="clearanceTimelineBody"></tbody>
-                <tfoot class="table-light fw-bold" id="clearanceTimelineFoot"></tfoot>
-              </table>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h3 class="text-primary fw-bold mb-0" style="font-size: 1.15rem;">📊 KFS SUMMARY METRICS</h3>
+                <small class="text-muted">BENCHMARK TURNAROUND TIME BREAKDOWN PER MONTH (APPROVED & DEDUPLICATED RECORDS ONLY)</small>
+              </div>
+              <button class="btn btn-primary btn-sm fw-bold shadow-sm" onclick="refreshTab4Metrics()">
+                <i class="bi bi-arrow-clockwise me-1"></i> REFRESH METRIC
+              </button>
             </div>
+
+            <!-- KFS FILTERS -->
+            <div class="bg-light p-3 rounded mb-4 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold mb-1">PROVINCE / FIELD OFFICE</label>
+                  <select class="form-select form-select-sm" id="filterKfsProvince" onchange="refreshTab4Metrics()">
+                    <option value="">ALL PROVINCES</option>
+                    <option value="BATANGAS">BATANGAS</option>
+                    <option value="CAVITE">CAVITE</option>
+                    <option value="LAGUNA">LAGUNA</option>
+                    <option value="QUEZON">QUEZON</option>
+                    <option value="RIZAL">RIZAL</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold mb-1">YEAR (AUTO-SELECTED TODAY)</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterKfsYear" onchange="refreshTab4Metrics()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                  <button class="btn btn-outline-secondary btn-sm w-50 fw-bold" onclick="resetKfsFilters()">RESET FILTERS</button>
+                  <button class="btn btn-primary btn-sm w-50 fw-bold" onclick="refreshTab4Metrics()"><i class="bi bi-arrow-clockwise me-1"></i> REFRESH</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TABLE 1: CLEARANCE TURNAROUND TIME METRICS ONLY -->
+            <div class="mb-5">
+              <div class="d-flex align-items-center mb-2 gap-2">
+                <span class="badge bg-info text-dark fw-bold px-3 py-2 fs-6">TABLE 1</span>
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-file-earmark-check-fill me-1 text-info"></i> JOB FAIR CLEARANCE (JFC) TURNAROUND TIME SUMMARY TABLE</h5>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+                  <thead class="table-info text-dark text-nowrap">
+                    <tr>
+                      <th rowspan="2" class="align-middle">MONTH</th>
+                      <th colspan="4" class="bg-success text-white">WITHIN PT (&le; 3 DAYS)</th>
+                      <th rowspan="2" class="bg-dark text-white align-middle">&lt; 4 (WITHIN PT)</th>
+                      <th colspan="4">4 TO 7 DAYS</th>
+                      <th rowspan="2" class="align-middle">&lt; 15</th>
+                      <th colspan="6">15 TO 20+ DAYS</th>
+                      <th rowspan="2" class="bg-success text-white align-middle">TOTAL WITHIN PT</th>
+                      <th rowspan="2" class="bg-danger text-white align-middle">TOTAL BEYOND PT</th>
+                      <th rowspan="2" class="bg-warning text-dark align-middle">BEYOND PT DAYS</th>
+                    </tr>
+                    <tr>
+                      <th>&lt; 1</th><th>1</th><th>2</th><th>3</th>
+                      <th>4</th><th>5</th><th>6</th><th>7</th>
+                      <th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20+</th>
+                    </tr>
+                  </thead>
+                  <tbody id="clearanceTimelineBody"></tbody>
+                  <tfoot class="table-light fw-bold" id="clearanceTimelineFoot"></tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- TABLE 2: PERMIT TURNAROUND TIME METRICS ONLY -->
+            <div>
+              <div class="d-flex align-items-center mb-2 gap-2">
+                <span class="badge bg-warning text-dark fw-bold px-3 py-2 fs-6">TABLE 2</span>
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-file-earmark-text-fill me-1 text-warning"></i> JOB FAIR PERMIT (JFP) TURNAROUND TIME SUMMARY TABLE</h5>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+                  <thead class="table-warning text-dark text-nowrap">
+                    <tr>
+                      <th rowspan="2" class="align-middle">MONTH</th>
+                      <th colspan="4" class="bg-success text-white">WITHIN PT (&le; 3 DAYS)</th>
+                      <th rowspan="2" class="bg-dark text-white align-middle">&lt; 4 (WITHIN PT)</th>
+                      <th colspan="4">4 TO 7 DAYS</th>
+                      <th rowspan="2" class="align-middle">&lt; 15</th>
+                      <th colspan="6">15 TO 20+ DAYS</th>
+                      <th rowspan="2" class="bg-success text-white align-middle">TOTAL WITHIN PT</th>
+                      <th rowspan="2" class="bg-danger text-white align-middle">TOTAL BEYOND PT</th>
+                      <th rowspan="2" class="bg-warning text-dark align-middle">BEYOND PT DAYS</th>
+                    </tr>
+                    <tr>
+                      <th>&lt; 1</th><th>1</th><th>2</th><th>3</th>
+                      <th>4</th><th>5</th><th>6</th><th>7</th>
+                      <th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20+</th>
+                    </tr>
+                  </thead>
+                  <tbody id="permitTimelineBody"></tbody>
+                  <tfoot class="table-light fw-bold" id="permitTimelineFoot"></tfoot>
+                </table>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -865,6 +987,7 @@
     window.addEventListener('DOMContentLoaded', function() {
       initLoggedInUser();
       checkKfsTabVisibility();
+      populateYearDropdowns();
       fetchAndRenderTab3Data();
 
       const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
@@ -875,6 +998,37 @@
 
       calculateCalculatedFields();
     });
+
+    // DYNAMIC POPULATION & AUTOMATIC DEFAULTING OF ALL YEAR DROPDOWNS TO TODAY'S YEAR
+    function populateYearDropdowns(records = []) {
+      const currentYear = new Date().getFullYear();
+      let yearsSet = new Set([currentYear - 2, currentYear - 1, currentYear, currentYear + 1]);
+
+      (records || []).forEach(r => {
+        const y = parseInt(r.year || r['YEAR'] || '', 10);
+        if (y && !isNaN(y)) yearsSet.add(y);
+      });
+
+      const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
+
+      const yearDropdownIds = ['filterYear', 'filterSummaryYear', 'filterKfsYear'];
+
+      yearDropdownIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const previousValue = el.value;
+        
+        el.innerHTML = '<option value="">ALL YEARS</option>' + 
+          sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
+
+        // Automatically set to current year today unless user selected another value
+        if (previousValue && sortedYears.includes(parseInt(previousValue, 10))) {
+          el.value = previousValue;
+        } else {
+          el.value = String(currentYear);
+        }
+      });
+    }
 
     // FLEXIBLE DOLE4A USER DETECTION ACROSS LOGINS & STORAGE
     function isDole4aUser() {
@@ -1198,8 +1352,67 @@
       }
     }
 
-    // ACCURATELY CALCULATE SUMMARY TABLE (TAB 2) FOR ALL RECORDS IN DATABASE
+    // HELPER: DEDUPLICATE APPROVED RECORDS ONLY (EXCLUDE DISAPPROVED AND DUPLICATE DOCUMENT NUMBERS/EVENTS)
+    function getDeduplicatedApprovedRecords(records) {
+      const approved = (records || []).filter(r => {
+        const act = (r.actionTaken || r['ACTION TAKEN'] || '').toUpperCase();
+        return act === 'APPROVED';
+      });
+
+      const seen = new Set();
+      const deduplicated = [];
+
+      approved.forEach(r => {
+        const docNo = (r.documentNumber || r['PERMIT / CLEARANCE NO.'] || r['PERMIT/CLEARANCE NO.'] || r['CLEARANCE NO.'] || '').trim().toUpperCase();
+        const docApplied = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || '').trim().toUpperCase();
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').trim().toUpperCase();
+        const dateJf = (r.dateOfJobFair || r['DATE OF JOB FAIR'] || r['JOB FAIR DATE'] || '').trim();
+        const sponsor = (r.sponsor || r['SPONSOR / ORGANIZER'] || r['SPONSOR'] || '').trim().toUpperCase();
+
+        let key = '';
+        if (docNo && docNo !== 'N/A') {
+          key = `${docApplied}::${docNo}`;
+        } else {
+          key = `${docApplied}::${province}::${dateJf}::${sponsor}`;
+        }
+
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduplicated.push(r);
+        }
+      });
+
+      return deduplicated;
+    }
+
+    // TAB 2: ACCURATELY CALCULATE SUMMARY TABLE FOR APPROVED & DEDUPLICATED RECORDS
+    function filterSummaryTable() {
+      renderSummaryTable(tab3DetailedRecords);
+    }
+
+    function resetSummaryFilters() {
+      document.getElementById('filterSummaryProvince').value = '';
+      document.getElementById('filterSummaryYear').value = String(new Date().getFullYear());
+      renderSummaryTable(tab3DetailedRecords);
+    }
+
     function renderSummaryTable(records) {
+      const fProvince = (document.getElementById('filterSummaryProvince') ? document.getElementById('filterSummaryProvince').value : '').toUpperCase();
+      const fYear = (document.getElementById('filterSummaryYear') ? document.getElementById('filterSummaryYear').value : '').toUpperCase();
+
+      // 1. FILTER ONLY APPROVED & DEDUPLICATE RECORDS
+      const cleanApprovedRecords = getDeduplicatedApprovedRecords(records);
+
+      // 2. APPLY PROVINCE & YEAR FILTERS
+      const filteredRecords = cleanApprovedRecords.filter(r => {
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const year = (r.year || r['YEAR'] || '').toUpperCase();
+
+        if (fProvince && !province.includes(fProvince)) return false;
+        if (fYear && !year.includes(fYear)) return false;
+        return true;
+      });
+
       const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
       const provinces = ["BATANGAS", "CAVITE", "LAGUNA", "QUEZON", "RIZAL"];
 
@@ -1209,7 +1422,7 @@
         provinces.forEach(p => matrix[m][p] = { permit: 0, clearance: 0 });
       });
 
-      (records || []).forEach(r => {
+      filteredRecords.forEach(r => {
         const rawM = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || r['MONTH'] || "").toUpperCase();
         const rawP = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || "").toUpperCase();
         const rawDoc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || "").toUpperCase();
@@ -1259,7 +1472,7 @@
       provinces.forEach(p => {
         footCells += `<td>${colTotals[p].permit || 0}</td><td>${colTotals[p].clearance || 0}</td>`;
       });
-      tfoot.innerHTML = `<tr class="table-dark text-white fw-bold"><td class="text-start">TOTAL</td>${footCells}<td class="bg-warning text-dark">${grandPermit}</td><td class="bg-info text-dark">${grandClearance}</td></tr>`;
+      tfoot.innerHTML = `<tr class="table-dark text-white fw-bold"><td class="text-start">ANNUAL TOTAL</td>${footCells}<td class="bg-warning text-dark">${grandPermit}</td><td class="bg-info text-dark">${grandClearance}</td></tr>`;
     }
 
     // PARSE LIVE GOOGLE SHEET CSV INTO RECORD OBJECTS
@@ -1335,6 +1548,35 @@
       }
     }
 
+    // HELPER: SORT DATA LATEST TO EARLIEST
+    function sortRecordsLatestToEarliest(records) {
+      return [...records].sort((a, b) => {
+        function parseBestDate(r) {
+          const dJf = r.dateOfJobFair || r['DATE OF JOB FAIR'] || r['JOB FAIR DATE'];
+          const dFiled = r.dateFiled || r['DATE FILED'];
+          const dIssued = r.dateIssued || r['DATE ISSUED'];
+          const dEnc = r.dateOfEncoding || r['DATE OF ENCODING'];
+
+          const str = dJf || dFiled || dIssued || dEnc;
+          if (str) {
+            const t = Date.parse(str);
+            if (!isNaN(t)) return t;
+          }
+          return 0;
+        }
+
+        const tA = parseBestDate(a);
+        const tB = parseBestDate(b);
+        if (tB !== tA) {
+          return tB - tA; // descending (latest date first)
+        }
+
+        const idxA = Number(a._rowIndex || a.rowIndex || 0);
+        const idxB = Number(b._rowIndex || b.rowIndex || 0);
+        return idxB - idxA; // descending (latest index first)
+      });
+    }
+
     // API: Fetch Records (Tab 3 & Tab 6) - FETCHES LIVE GOOGLE SHEET DATA DIRECTLY
     async function fetchAndRenderTab3Data() {
       try {
@@ -1363,7 +1605,14 @@
           tab3DetailedRecords = localRecords;
         }
 
-        renderTab3Table();
+        // 1. POPULATE YEAR DROPDOWNS & AUTO-SELECT TODAY'S YEAR
+        populateYearDropdowns(tab3DetailedRecords);
+
+        // 2. SORT DATA LATEST TO EARLIEST
+        tab3DetailedRecords = sortRecordsLatestToEarliest(tab3DetailedRecords);
+
+        // 3. RENDER ALL TABLES
+        filterTab3Table();
         renderSummaryTable(tab3DetailedRecords);
         renderTab6Schedules();
         refreshTab4Metrics();
@@ -1372,7 +1621,7 @@
       }
     }
 
-    // TAB 3 FILTERING FUNCTION
+    // TAB 3 FILTERING FUNCTION (PRESERVES SORTING LATEST TO EARLIEST)
     function filterTab3Table() {
       const fProvince = document.getElementById('filterProvince').value.toUpperCase();
       const fMonth = document.getElementById('filterMonth').value.toUpperCase();
@@ -1396,20 +1645,20 @@
         return true;
       });
 
-      renderTab3TableCustom(filtered);
+      renderTab3TableCustom(sortRecordsLatestToEarliest(filtered));
     }
 
     function resetTab3Filters() {
       document.getElementById('filterProvince').value = '';
       document.getElementById('filterMonth').value = '';
-      document.getElementById('filterYear').value = '';
+      document.getElementById('filterYear').value = String(new Date().getFullYear());
       document.getElementById('filterDocument').value = '';
       document.getElementById('filterAction').value = '';
-      renderTab3TableCustom(tab3DetailedRecords);
+      filterTab3Table();
     }
 
     function renderTab3Table() {
-      renderTab3TableCustom(tab3DetailedRecords);
+      renderTab3TableCustom(sortRecordsLatestToEarliest(tab3DetailedRecords));
     }
 
     // RENDER TAB 3 TABLE WITH PROOF FILES COLUMNS
@@ -1450,7 +1699,7 @@
             <button class="btn btn-warning btn-sm py-0 me-1" onclick="editRecord(${rId})">EDIT</button>
             <button class="btn btn-danger btn-sm py-0" onclick="executeDeleteRecord(${rId})">DEL</button>
           </td>
-          <td>${year}</td>
+          <td class="fw-bold">${year}</td>
           <td>${province}</td>
           <td>${repPeriod}</td>
           <td class="text-start">${sponsor}</td>
@@ -1771,8 +2020,50 @@
       return 0;
     }
 
-    // TAB 4: CALCULATE AND DISPLAY KFS SUMMARY BASED ON ACCURATE TURNAROUND DAYS PER MONTH
+    function resetKfsFilters() {
+      document.getElementById('filterKfsProvince').value = '';
+      document.getElementById('filterKfsYear').value = String(new Date().getFullYear());
+      refreshTab4Metrics();
+    }
+
+    // TAB 4: CALCULATE AND DISPLAY KFS SUMMARY FOR CLEARANCES & PERMITS SEPARATELY (APPROVED & DEDUPLICATED)
     function refreshTab4Metrics() {
+      const fProvince = (document.getElementById('filterKfsProvince') ? document.getElementById('filterKfsProvince').value : '').toUpperCase();
+      const fYear = (document.getElementById('filterKfsYear') ? document.getElementById('filterKfsYear').value : '').toUpperCase();
+
+      // 1. FILTER APPROVED AND DEDUPLICATED RECORDS ONLY
+      const approvedDeduplicated = getDeduplicatedApprovedRecords(tab3DetailedRecords);
+
+      // 2. APPLY PROVINCE AND YEAR FILTERS
+      const filteredRecords = approvedDeduplicated.filter(r => {
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const year = (r.year || r['YEAR'] || '').toUpperCase();
+
+        if (fProvince && !province.includes(fProvince)) return false;
+        if (fYear && !year.includes(fYear)) return false;
+        return true;
+      });
+
+      // 3. SPLIT INTO CLEARANCE RECORDS AND PERMIT RECORDS
+      const clearanceRecords = filteredRecords.filter(r => {
+        const docApplied = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        return docApplied.includes('CLEARANCE') || docApplied.includes('JFC');
+      });
+
+      const permitRecords = filteredRecords.filter(r => {
+        const docApplied = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        return docApplied.includes('PERMIT') || docApplied.includes('JFP');
+      });
+
+      // RENDER BOTH TABLES
+      renderTurnaroundTimelineTable(clearanceRecords, 'clearanceTimelineBody', 'clearanceTimelineFoot');
+      renderTurnaroundTimelineTable(permitRecords, 'permitTimelineBody', 'permitTimelineFoot');
+
+      showScreenAlert("KFS SUMMARY METRICS REFRESHED.", "success");
+    }
+
+    // RENDER TURNAROUND MATRIX TABLE
+    function renderTurnaroundTimelineTable(records, tbodyId, tfootId) {
       const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
       
       let monthlyData = {};
@@ -1786,7 +2077,7 @@
         };
       });
 
-      tab3DetailedRecords.forEach(r => {
+      records.forEach(r => {
         const monthStr = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '').toUpperCase();
         const matchedMonth = months.find(m => monthStr.includes(m));
         
@@ -1819,7 +2110,7 @@
         }
       });
 
-      let tbody = document.getElementById('clearanceTimelineBody');
+      let tbody = document.getElementById(tbodyId);
       tbody.innerHTML = '';
 
       let totals = {
@@ -1881,7 +2172,7 @@
         `;
       });
 
-      let tfoot = document.getElementById('clearanceTimelineFoot');
+      let tfoot = document.getElementById(tfootId);
       tfoot.innerHTML = `
         <tr class="table-dark text-white fw-bold">
           <td>ANNUAL TOTAL</td>
@@ -1924,4 +2215,4 @@
     }
   </script>
 </body>
-</htmlL>
+</html>
