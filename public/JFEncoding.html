@@ -1722,22 +1722,24 @@
       const currentUser = sessionStorage.getItem('username') || localStorage.getItem('username') || '';
       const uParam = currentUser ? `username=${encodeURIComponent(currentUser)}` : '';
 
-      // 1. Local file:// protocol execution
-      if (window.location.protocol === 'file:') {
-        const fileTarget = clean.endsWith('.html') ? clean : `${clean}.html`;
-        window.location.href = fileTarget + (uParam ? `?${uParam}` : '');
-        return;
-      }
+      // Exact GitHub Repository Filename Mapping
+      const GITHUB_EXACT_FILES = {
+        'nationalreports': 'NationalReports',
+        'jfencoding': 'JFEncoding.html',
+        'mer': 'MER.html',
+        'dashboard': 'Dashboard.html',
+        'login': 'login.html'
+      };
 
-      // 2. Query param based routing (e.g. index.html?page=NationalReports or ?page=nationalreports)
+      // 1. Query param based routing (e.g. index.html?page=NationalReports or ?page=nationalreports)
       if (window.location.search.includes('page=')) {
         window.location.href = `?page=${lower}` + (uParam ? `&${uParam}` : '');
         return;
       }
 
-      // 3. Static server / GitHub Pages / Express routing (target .html directly if needed)
-      const targetPath = clean.endsWith('.html') ? clean : `${clean}.html`;
-      window.location.href = `/${targetPath}` + (uParam ? `?${uParam}` : '');
+      // 2. Exact filename navigation for GitHub Pages & static web servers
+      const targetFile = GITHUB_EXACT_FILES[lower] || clean;
+      window.location.href = targetFile + (uParam ? `?${uParam}` : '');
     }
 
     function handleSprsClick(event) {
