@@ -159,8 +159,6 @@ app.listen(PORT, () => {
 // JOB FAIR ENCODING & RECORDS BACKEND MODULE
 // ==========================================
 
-const fs = require('fs');
-const path = require('path');
 
 const JF_DB_PATH = path.join(__dirname, 'jf_records.json');
 
