@@ -457,7 +457,7 @@
               <div class="form-title">COMPUTED TIMELINE & TURNAROUND METRICS</div>
               <div class="row g-2">
                 <div class="col-md-4">
-                  <label class="form-label">TURNAROUND TIME (DAYS) <small class="text-muted">(Filed vs Issued less Sun/Holidays)</small></label>
+                  <label class="form-label">TURNAROUND TIME (DAYS) <small class="text-muted">(Filed vs Issued less Sat/Sun/Holidays)</small></label>
                   <input type="text" class="form-control bg-light fw-bold text-primary" id="turnaroundTime" readonly placeholder="0 DAYS">
                 </div>
                 <div class="col-md-4">
@@ -510,19 +510,14 @@
           </div>
         </div>
 
-        <!-- TAB 3: Database Report (WITH GOOGLE SHEET LINK & DOWNLOAD BUTTONS) -->
+        <!-- TAB 3: Database Report (LIVE GOOGLE SHEETS CONTENT INTEGRATED DIRECTLY) -->
         <div class="tab-pane fade" id="content-3" role="tabpanel">
           <div class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h3 class="text-primary fw-bold mb-0" style="font-size: 1.15rem;">💾 JF DATABASE</h3>
-              <div class="d-flex gap-2">
-                <a href="https://docs.google.com/spreadsheets/d/1-dN0cj7ozUlH14t7otsucxwDOOOeZ67WoWsQOGZ_aM4/edit?pli=1&gid=251500066#gid=251500066" target="_blank" class="btn btn-outline-success btn-sm fw-bold shadow-sm">
-                  <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> OPEN GOOGLE SHEET
-                </a>
-                <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="downloadTab3Excel()">
-                  <i class="bi bi-download me-1"></i> DOWNLOAD EXCEL
-                </button>
-              </div>
+              <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="downloadTab3Excel()">
+                <i class="bi bi-download me-1"></i> DOWNLOAD EXCEL
+              </button>
             </div>
             <div class="table-responsive">
               <table class="table table-bordered table-striped align-middle text-center" id="tab3TableElement">
@@ -549,7 +544,7 @@
                   </tr>
                 </thead>
                 <tbody id="tab3DataTableBody">
-                  <tr><td colspan="18" class="text-center py-4 text-muted">LOADING RECORDS...</td></tr>
+                  <tr><td colspan="18" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>LOADING LIVE DATABASE RECORDS...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -766,6 +761,9 @@
     let tab3DetailedRecords = [];
     let screenAlertTimeout = null;
 
+    // LIVE GOOGLE SHEET CSV EXPORT ENDPOINT (GID 251500066)
+    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1-dN0cj7ozUlH14t7otsucxwDOOOeZ67WoWsQOGZ_aM4/gviz/tq?tqx=out:csv&gid=251500066";
+
     // Standard Holidays List (MM-DD)
     const philippineHolidays = [
       "01-01", // New Year's Day
@@ -835,7 +833,6 @@
         } catch(e) {}
       }
 
-      // Default true fallback if DOLE REGION IV-A default context is active
       return true;
     }
 
@@ -974,6 +971,7 @@
     }
 
     // COMPUTED METRICS LOGIC (ENCODING FORM)
+    // TURNAROUND TIME MINUSES SATURDAYS (6), SUNDAYS (0), AND PHILIPPINE HOLIDAYS
     function calculateCalculatedFields() {
       const dateFiledVal = document.getElementById('dateFiled').value;
       const dateIssuedVal = document.getElementById('dateIssued').value;
@@ -992,10 +990,10 @@
           while (curDate <= endDate) {
             const dayOfWeek = curDate.getDay();
             const mmDd = String(curDate.getMonth() + 1).padStart(2, '0') + '-' + String(curDate.getDate()).padStart(2, '0');
-            const isSunday = (dayOfWeek === 0);
+            const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
             const isHoliday = philippineHolidays.includes(mmDd);
 
-            if (!isSunday && !isHoliday) {
+            if (!isWeekend && !isHoliday) {
               workingDays++;
             }
             curDate.setDate(curDate.getDate() + 1);
@@ -1152,12 +1150,105 @@
       });
     }
 
-    // API: Fetch Records (Tab 3 & Tab 6)
+    // PARSE LIVE GOOGLE SHEET CSV INTO RECORD OBJECTS
+    function parseCsvToRecords(csvText) {
+      const lines = csvText.split(/\r?\n/);
+      if (lines.length < 2) return [];
+
+      function parseCsvLine(line) {
+        let result = [];
+        let cur = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          let char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(cur.replace(/^"|"$/g, '').trim());
+            cur = '';
+          } else {
+            cur += char;
+          }
+        }
+        result.push(cur.replace(/^"|"$/g, '').trim());
+        return result;
+      }
+
+      const headers = parseCsvLine(lines[0]).map(h => h.toUpperCase());
+      let records = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const row = parseCsvLine(lines[i]);
+        let record = { rowIndex: i };
+        headers.forEach((h, idx) => {
+          record[h] = row[idx] || '';
+        });
+
+        record.year = record['YEAR'] || '2026';
+        record.province = record['PROVINCE'] || record['FIELD OFFICE'] || '';
+        record.fieldOffice = record.province;
+        record.reportingPeriod = record['REPORTING PERIOD'] || record['MONTH'] || '';
+        record.sponsor = record['SPONSOR / ORGANIZER'] || record['SPONSOR/ORGANIZER'] || record['SPONSOR'] || '';
+        record.contactNumber = record['CONTACT NUMBER'] || record['CONTACT NO'] || '';
+        record.documentNumber = record['PERMIT / CLEARANCE NO.'] || record['PERMIT/CLEARANCE NO.'] || record['CLEARANCE NO.'] || '';
+        record.documentApplied = record['JOB FAIR DOCUMENT APPLIED'] || record['DOCUMENT APPLIED'] || record['DOCUMENT'] || '';
+        record.jobFairVenue = record['JOB FAIR VENUE'] || record['VENUE'] || '';
+        record.dateOfJobFair = record['DATE OF JOB FAIR'] || record['JOB FAIR DATE'] || '';
+        record.dateFiled = record['DATE FILED'] || '';
+        record.dateIssued = record['DATE ISSUED'] || '';
+        record.dateOfEncoding = record['DATE OF ENCODING'] || '';
+        record.turnaroundTime = record['TURNAROUND TIME'] || '';
+        record.daysFiledBeforeJF = record['DAYS FILED BEFORE JF'] || record['NO. DAYS FILED BEFORE JF'] || '';
+        record.daysReported = record['DAYS REPORTED'] || record['NO. DAYS REPORTED'] || '';
+        record.actionTaken = record['ACTION TAKEN'] || 'APPROVED';
+        record.disapprovedReason = record['REASON IF DISAPPROVED'] || 'N/A';
+
+        records.push(record);
+      }
+      return records;
+    }
+
+    async function fetchGoogleSheetRecords() {
+      try {
+        const res = await fetch(GOOGLE_SHEET_CSV_URL);
+        if (!res.ok) throw new Error('Google Sheet network response not OK');
+        const csvText = await res.text();
+        return parseCsvToRecords(csvText);
+      } catch(err) {
+        console.warn("Direct Google Sheet CSV fetch unaccessible, falling back to backend storage:", err);
+        return null;
+      }
+    }
+
+    // API: Fetch Records (Tab 3 & Tab 6) - FETCHES LIVE GOOGLE SHEET DATA DIRECTLY
     async function fetchAndRenderTab3Data() {
       try {
-        const res = await fetch('/api/jf/records');
-        const data = await res.json();
-        tab3DetailedRecords = data.records || data || [];
+        const tbody = document.getElementById('tab3DataTableBody');
+        tbody.innerHTML = `<tr><td colspan="18" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>FETCHING LIVE GOOGLE SHEET & DATABASE RECORDS...</td></tr>`;
+
+        let liveSheetRecords = await fetchGoogleSheetRecords();
+        let localRecords = [];
+
+        try {
+          const res = await fetch('/api/jf/records');
+          const data = await res.json();
+          localRecords = data.records || data || [];
+        } catch(e) {}
+
+        if (liveSheetRecords && liveSheetRecords.length > 0) {
+          tab3DetailedRecords = [...liveSheetRecords];
+          localRecords.forEach(lr => {
+            const exists = tab3DetailedRecords.some(sr => 
+              (sr.documentNumber && sr.documentNumber === lr.documentNumber) ||
+              (sr.rowIndex == lr.rowIndex)
+            );
+            if (!exists) tab3DetailedRecords.push(lr);
+          });
+        } else {
+          tab3DetailedRecords = localRecords;
+        }
+
         renderTab3Table();
         renderTab6Schedules();
         refreshTab4Metrics();
@@ -1166,7 +1257,7 @@
       }
     }
 
-    // RENDER ALL 18 COLUMNS IN TAB 3 (DATABASE) - MATCHING GOOGLE SHEETS STRUCTURE
+    // RENDER ALL 18 COLUMNS IN TAB 3 (DATABASE) - MATCHING GOOGLE SHEETS STRUCTURE EXACTLY
     function renderTab3Table() {
       const tbody = document.getElementById('tab3DataTableBody');
       if (!tab3DetailedRecords || tab3DetailedRecords.length === 0) {
@@ -1323,6 +1414,7 @@
       }
     }
 
+    // EDIT FORM CALCULATION - MINUSES SATURDAYS (6), SUNDAYS (0), AND PHILIPPINE HOLIDAYS
     function calculateEditCalculatedFields() {
       const dateFiledVal = document.getElementById('editDateFiled').value;
       const dateIssuedVal = document.getElementById('editDateIssued').value;
@@ -1341,10 +1433,10 @@
           while (curDate <= endDate) {
             const dayOfWeek = curDate.getDay();
             const mmDd = String(curDate.getMonth() + 1).padStart(2, '0') + '-' + String(curDate.getDate()).padStart(2, '0');
-            const isSunday = (dayOfWeek === 0);
+            const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
             const isHoliday = philippineHolidays.includes(mmDd);
 
-            if (!isSunday && !isHoliday) {
+            if (!isWeekend && !isHoliday) {
               workingDays++;
             }
             curDate.setDate(curDate.getDate() + 1);
@@ -1491,11 +1583,11 @@
       renderTab5Dashboard();
     }
 
-    // HELPER: EXTRACT TURNAROUND DAYS NUMERIC VALUE
+    // HELPER: EXTRACT TURNAROUND DAYS NUMERIC VALUE (EXCLUDES SAT/SUN/HOLIDAYS)
     function getTurnaroundDays(r) {
       const raw = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
       if (typeof raw === 'number') return raw;
-      if (typeof raw === 'string') {
+      if (typeof raw === 'string' && raw.includes('DAY')) {
         const parsed = parseInt(raw.replace(/[^0-9]/g, ''), 10);
         if (!isNaN(parsed)) return parsed;
       }
@@ -1512,7 +1604,9 @@
           while (cur <= eDate) {
             const dow = cur.getDay();
             const mmDd = String(cur.getMonth() + 1).padStart(2, '0') + '-' + String(cur.getDate()).padStart(2, '0');
-            if (dow !== 0 && !philippineHolidays.includes(mmDd)) workingDays++;
+            const isWeekend = (dow === 0 || dow === 6);
+            const isHoliday = philippineHolidays.includes(mmDd);
+            if (!isWeekend && !isHoliday) workingDays++;
             cur.setDate(cur.getDate() + 1);
           }
           return workingDays;
