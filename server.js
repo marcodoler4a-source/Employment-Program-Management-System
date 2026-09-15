@@ -153,3 +153,184 @@ app.get('/api/user/authorized', (req, res) => {
 app.listen(PORT, () => {
   console.log(`DOLE CALABARZON Express Server listening on port ${PORT}`);
 });
+
+
+// ==========================================
+// JOB FAIR ENCODING & RECORDS BACKEND MODULE
+// ==========================================
+
+const fs = require('fs');
+const path = require('path');
+
+const JF_DB_PATH = path.join(__dirname, 'jf_records.json');
+
+// Helper: Read persistent records JSON
+function getJfRecords() {
+  try {
+    if (fs.existsSync(JF_DB_PATH)) {
+      return JSON.parse(fs.readFileSync(JF_DB_PATH, 'utf8'));
+    }
+  } catch (err) {
+    console.error("Error reading JF database file:", err.message);
+  }
+  return [];
+}
+
+// Helper: Save persistent records JSON
+function saveJfRecords(records) {
+  try {
+    fs.writeFileSync(JF_DB_PATH, JSON.stringify(records, null, 2), 'utf8');
+  } catch (err) {
+    console.error("Error writing JF database file:", err.message);
+  }
+}
+
+// API: Get All Records (Tab 3 & Tab 6)
+app.get('/api/jf/records', (req, res) => {
+  const records = getJfRecords();
+  res.json(records);
+});
+
+// API: Get JF Summary Data (Tab 2)
+app.get('/api/jf/summary', (req, res) => {
+  const records = getJfRecords();
+  res.json(records);
+});
+
+// API: Save New Encoded Record (Tab 1)
+app.post('/api/jf/encode', (req, res) => {
+  try {
+    const formData = req.body;
+    const records = getJfRecords();
+
+    const now = new Date();
+    const newRecord = {
+      rowIndex: Date.now(), // Unique ID / Row Index
+      timestamp: now.toISOString().replace('T', ' ').substring(0, 19),
+      year: now.getFullYear().toString(),
+      month: formData.reportingPeriod || "JANUARY",
+      province: formData.fieldOffice || "BATANGAS FIELD OFFICE",
+      reportingPeriod: formData.reportingPeriod || "",
+      fieldOffice: formData.fieldOffice || "",
+      sponsor: formData.sponsor || "",
+      contactNumber: formData.contactNumber || "",
+      dateOfJobFair: formData.dateOfJobFair || "",
+      dateFiled: formData.dateFiled || "",
+      dateReceived: formData.dateFiled || "",
+      jobFairVenue: formData.jobFairVenue || "",
+      documentApplied: formData.documentApplied || "",
+      actionTaken: formData.actionTaken || "APPROVED",
+      disapprovedReason: formData.disapprovedReason || "N/A",
+      documentNumber: formData.documentNumber || "",
+      dateIssued: formData.dateIssued || "",
+      entitiesOverseas: formData.entitiesOverseas || "0",
+      entitiesLocal: formData.entitiesLocal || "0",
+      vacanciesOverseas: formData.vacanciesOverseas || "0",
+      vacanciesLocal: formData.vacanciesLocal || "0",
+      proofReceivedUrl: "",
+      proofReleasedUrl: ""
+    };
+
+    records.push(newRecord);
+    saveJfRecords(records);
+
+    res.json({
+      success: true,
+      message: "Job Fair Record saved successfully!"
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API: Update Record (Edit Modal)
+app.post('/api/jf/update-record', (req, res) => {
+  try {
+    const { rowIndex, sponsor, jobFairVenue, dateOfJobFair, dateFiled, dateReceived, documentNumber } = req.body;
+    let records = getJfRecords();
+
+    const idx = records.findIndex(r => r.rowIndex == rowIndex);
+    if (idx !== -1) {
+      if (sponsor) records[idx].sponsor = sponsor;
+      if (jobFairVenue) records[idx].jobFairVenue = jobFairVenue;
+      if (dateOfJobFair) records[idx].dateOfJobFair = dateOfJobFair;
+      if (dateFiled) records[idx].dateFiled = dateFiled;
+      if (dateReceived) records[idx].dateReceived = dateReceived;
+      if (documentNumber) records[idx].documentNumber = documentNumber;
+
+      saveJfRecords(records);
+      return res.json({ success: true, message: "Record updated successfully!" });
+    }
+
+    res.status(404).json({ success: false, message: "Record not found." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API: Delete Record (Delete Modal)
+app.post('/api/jf/delete-record', (req, res) => {
+  try {
+    const { rowIndex } = req.body;
+    let records = getJfRecords();
+
+    const initialLength = records.length;
+    records = records.filter(r => r.rowIndex != rowIndex);
+
+    if (records.length < initialLength) {
+      saveJfRecords(records);
+      return res.json({ success: true, message: "Record deleted successfully!" });
+    }
+
+    res.status(404).json({ success: false, message: "Record not found." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API: Get KFS Timeline Breakdown (Tab 4)
+app.get('/api/jf/tab4-breakdown', (req, res) => {
+  try {
+    const records = getJfRecords();
+    const clearanceRecords = [];
+    const permitRecords = [];
+
+    records.forEach(r => {
+      const doc = (r.documentApplied || "").toUpperCase();
+      let days = null;
+
+      if (r.dateFiled && r.dateIssued) {
+        const d1 = new Date(r.dateFiled);
+        const d2 = new Date(r.dateIssued);
+        if (!isNaN(d1) && !isNaN(d2)) {
+          days = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+        }
+      }
+
+      const item = {
+        month: r.reportingPeriod || r.month || "JANUARY",
+        year: r.year || "2026",
+        province: r.fieldOffice || r.province || "BATANGAS",
+        actionTaken: r.actionTaken || "APPROVED",
+        clearanceNo: r.documentNumber || "",
+        documentNumber: r.documentNumber || "",
+        days: days
+      };
+
+      if (doc.includes("PERMIT")) {
+        permitRecords.push(item);
+      } else {
+        clearanceRecords.push(item);
+      }
+    });
+
+    res.json({
+      success: true,
+      clearanceRecords,
+      permitRecords
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
