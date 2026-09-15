@@ -186,14 +186,6 @@
       opacity: 0.2;
       margin: 15px 0;
     }
-    .filter-box {
-      background-color: #f1f4f9;
-      border: 1px solid #dce2ec;
-      border-radius: 6px;
-      padding: 12px 16px;
-      margin-bottom: 15px;
-      font-size: 0.82rem;
-    }
     table { font-size: 0.8rem !important; }
     th, td { padding: 6px 8px !important; }
 
@@ -218,11 +210,16 @@
       border-radius: 8px !important;
     }
 
-    #tab3TableElement th:first-child,
-    #tab3TableElement td:first-child {
-      width: 170px !important;
-      min-width: 170px !important;
-      white-space: nowrap;
+    /* CENTERED SCREEN ALERT STYLING */
+    #screenAlertContainer {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1055;
+      width: 90%;
+      max-width: 520px;
+      display: none;
     }
   </style>
 </head>
@@ -307,9 +304,9 @@
       </div>
     </div>
     
-    <!-- Screen Alert Container -->
-    <div class="container-fluid px-4 mt-3" id="screenAlertContainer" style="display: none;">
-      <div id="screenAlertBox" class="alert alert-dismissible fade show fw-bold text-uppercase shadow-sm" role="alert">
+    <!-- CENTERED SCREEN ALERT BOX -->
+    <div id="screenAlertContainer">
+      <div id="screenAlertBox" class="alert alert-dismissible fade show fw-bold text-uppercase shadow-lg text-center" role="alert">
         <span id="screenAlertMessage"></span>
         <button type="button" class="btn-close" onclick="hideScreenAlert()"></button>
       </div>
@@ -379,7 +376,7 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">DATE OF JOB FAIR <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateOfJobFair" required>
+                  <input type="date" class="form-control text-muted" id="dateOfJobFair" required onchange="calculateCalculatedFields()">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">JOB FAIR VENUE <span>*</span></label>
@@ -439,17 +436,40 @@
                     </div>
                   </div>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">DATE ISSUED <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateIssued" required>
-                </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                   <label class="form-label">DATE FILED <span>*</span></label>
-                  <input type="date" class="form-control text-muted" id="dateFiled" required>
+                  <input type="date" class="form-control text-muted" id="dateFiled" required onchange="calculateCalculatedFields()">
                 </div>
+                <div class="col-md-4">
+                  <label class="form-label">DATE ISSUED <span>*</span></label>
+                  <input type="date" class="form-control text-muted" id="dateIssued" required onchange="calculateCalculatedFields()">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">DATE OF ENCODING <span>*</span></label>
+                  <input type="date" class="form-control text-muted" id="dateOfEncoding" required onchange="calculateCalculatedFields()">
+                </div>
+              </div>
+
+              <hr class="section-divider">
+              <div class="section-badge">SECTION 3 OF 3</div>
+              <div class="form-title">COMPUTED TIMELINE & TURNAROUND METRICS</div>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <label class="form-label">TURNAROUND TIME (DAYS) <small class="text-muted">(Filed vs Issued less Sun/Holidays)</small></label>
+                  <input type="text" class="form-control bg-light fw-bold text-primary" id="turnaroundTime" readonly placeholder="0 DAYS">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">NO. DAYS FILED BEFORE JF <small class="text-muted">(Job Fair Date vs Date Filed)</small></label>
+                  <input type="text" class="form-control bg-light fw-bold text-success" id="daysFiledBeforeJF" readonly placeholder="0 DAYS">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">NO. DAYS REPORTED <small class="text-muted">(Encoding Date vs Date Filed)</small></label>
+                  <input type="text" class="form-control bg-light fw-bold text-info" id="daysReported" readonly placeholder="0 DAYS">
+                </div>
+                
                 <div class="col-12 mt-3 d-flex gap-2">
                   <button type="submit" class="btn btn-success w-75 py-2 fw-bold shadow-sm" id="submitBtn">SUBMIT RECORD</button>
-                  <button type="reset" class="btn btn-light border w-25 py-2 text-secondary fw-bold">CLEAR FORM</button>
+                  <button type="reset" class="btn btn-light border w-25 py-2 text-secondary fw-bold" onclick="setTimeout(calculateCalculatedFields, 100)">CLEAR FORM</button>
                 </div>
               </div>
             </form>
@@ -488,7 +508,7 @@
           </div>
         </div>
 
-        <!-- TAB 3: Database Report -->
+        <!-- TAB 3: Database Report (ALL COLUMNS SHOWN) -->
         <div class="tab-pane fade" id="content-3" role="tabpanel">
           <div class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -497,23 +517,30 @@
             </div>
             <div class="table-responsive">
               <table class="table table-bordered table-striped align-middle text-center" id="tab3TableElement">
-                <thead class="table-light">
+                <thead class="table-light text-nowrap">
                   <tr>
                     <th>ACTION</th>
                     <th>YEAR</th>
                     <th>PROVINCE</th>
-                    <th>MONTH</th>
+                    <th>REPORTING PERIOD</th>
                     <th>SPONSOR/ORGANIZER</th>
-                    <th>PERMIT/CLEARANCE NO</th>
+                    <th>CONTACT NUMBER</th>
+                    <th>PERMIT/CLEARANCE NO.</th>
                     <th>DOCUMENT</th>
                     <th>VENUE</th>
                     <th>JOB FAIR DATE</th>
+                    <th>DATE FILED</th>
+                    <th>DATE ISSUED</th>
+                    <th>DATE OF ENCODING</th>
+                    <th>TURNAROUND TIME</th>
+                    <th>DAYS FILED BEFORE JF</th>
+                    <th>DAYS REPORTED</th>
                     <th>ACTION TAKEN</th>
-                    <th>CONTACT NUMBER</th>
+                    <th>REASON IF DISAPPROVED</th>
                   </tr>
                 </thead>
                 <tbody id="tab3DataTableBody">
-                  <tr><td colspan="11" class="text-center py-4 text-muted">LOADING RECORDS...</td></tr>
+                  <tr><td colspan="18" class="text-center py-4 text-muted">LOADING RECORDS...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -592,12 +619,24 @@
 
   <!-- Bootstrap 5 Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
+  <script>
     let rawSheetRecords = [];
     let tab3DetailedRecords = [];
     let tab4Unlocked = false;
     let tab5Unlocked = false;
+
+    // Standard Holidays List (MM-DD)
+    const philippineHolidays = [
+      "01-01", // New Year's Day
+      "04-09", // Araw ng Kagitingan
+      "05-01", // Labor Day
+      "06-12", // Independence Day
+      "08-26", // National Heroes Day
+      "11-01", // All Saints' Day
+      "11-30", // Bonifacio Day
+      "12-25", // Christmas Day
+      "12-30"  // Rizal Day
+    ];
 
     const officeSponsors = {
       "BATANGAS FIELD OFFICE": ["PESO BATANGAS CITY", "PESO LIPA CITY", "PESO TANAUAN CITY", "BATANGAS STATE UNIVERSITY"],
@@ -614,6 +653,12 @@
 
       const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
       document.getElementById('reportingPeriod').value = months[new Date().getMonth()];
+
+      // Set default encoding date to Today (YYYY-MM-DD)
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('dateOfEncoding').value = todayStr;
+
+      calculateCalculatedFields();
     });
 
     function initLoggedInUser() {
@@ -650,10 +695,11 @@
       if (triggerEl) bootstrap.Tab.getOrCreateInstance(triggerEl).show();
     }
 
+    // CENTERED ALERT MESSAGE
     function showScreenAlert(message, type) {
       const container = document.getElementById('screenAlertContainer');
       document.getElementById('screenAlertMessage').innerText = message;
-      document.getElementById('screenAlertBox').className = `alert alert-${type} alert-dismissible fade show fw-bold text-uppercase shadow-sm`;
+      document.getElementById('screenAlertBox').className = `alert alert-${type} alert-dismissible fade show fw-bold text-uppercase shadow-lg text-center`;
       container.style.display = 'block';
     }
 
@@ -681,7 +727,6 @@
       updateNumberFormat();
     }
 
-    // UPDATED FUNCTION: Dynamic Field Office Prefix for Clearance/Permit
     function updateNumberFormat() {
       const docPermitEl = document.getElementById('docPermit');
       const docClearanceEl = document.getElementById('docClearance');
@@ -700,19 +745,12 @@
           document.getElementById('extraGroupContainer').style.display = 'none';
         }
       } else if (isClearance) {
-        // DYNAMIC FIELD OFFICE PREFIX
         let prefix = "PO#";
-        if (fieldOffice.includes("BATANGAS")) {
-          prefix = "BPO#";
-        } else if (fieldOffice.includes("CAVITE")) {
-          prefix = "CPO#";
-        } else if (fieldOffice.includes("LAGUNA")) {
-          prefix = "LPO#";
-        } else if (fieldOffice.includes("QUEZON")) {
-          prefix = "QPO#";
-        } else if (fieldOffice.includes("RIZAL")) {
-          prefix = "RPO#";
-        }
+        if (fieldOffice.includes("BATANGAS")) prefix = "BPO#";
+        else if (fieldOffice.includes("CAVITE")) prefix = "CPO#";
+        else if (fieldOffice.includes("LAGUNA")) prefix = "LPO#";
+        else if (fieldOffice.includes("QUEZON")) prefix = "QPO#";
+        else if (fieldOffice.includes("RIZAL")) prefix = "RPO#";
         
         document.getElementById('numPrefix').value = prefix;
         document.getElementById('numMiddle').value = mm;
@@ -728,6 +766,63 @@
     function toggleDisapprovedReason() {
       const isDisapproved = document.getElementById('actionDisapproved').checked;
       document.getElementById('disapprovedReason').value = isDisapproved ? "" : "N/A";
+    }
+
+    // COMPUTED METRICS LOGIC
+    function calculateCalculatedFields() {
+      const dateFiledVal = document.getElementById('dateFiled').value;
+      const dateIssuedVal = document.getElementById('dateIssued').value;
+      const dateOfJobFairVal = document.getElementById('dateOfJobFair').value;
+      const dateOfEncodingVal = document.getElementById('dateOfEncoding').value;
+
+      // 1. Turnaround Time: Date Filed vs Date Issued less Sundays and Holidays
+      if (dateFiledVal && dateIssuedVal) {
+        const startDate = new Date(dateFiledVal);
+        const endDate = new Date(dateIssuedVal);
+        
+        if (endDate >= startDate) {
+          let workingDays = 0;
+          let curDate = new Date(startDate.getTime());
+          
+          while (curDate <= endDate) {
+            const dayOfWeek = curDate.getDay(); // 0 is Sunday
+            const mmDd = String(curDate.getMonth() + 1).padStart(2, '0') + '-' + String(curDate.getDate()).padStart(2, '0');
+            
+            const isSunday = (dayOfWeek === 0);
+            const isHoliday = philippineHolidays.includes(mmDd);
+
+            if (!isSunday && !isHoliday) {
+              workingDays++;
+            }
+            curDate.setDate(curDate.getDate() + 1);
+          }
+          document.getElementById('turnaroundTime').value = `${workingDays} DAY(S)`;
+        } else {
+          document.getElementById('turnaroundTime').value = `0 DAY(S)`;
+        }
+      } else {
+        document.getElementById('turnaroundTime').value = `0 DAY(S)`;
+      }
+
+      // 2. No. Days Filed before JF: Job Fair Date minus Date Filed
+      if (dateOfJobFairVal && dateFiledVal) {
+        const jfDate = new Date(dateOfJobFairVal);
+        const filedDate = new Date(dateFiledVal);
+        const diffDays = Math.round((jfDate - filedDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('daysFiledBeforeJF').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
+      } else {
+        document.getElementById('daysFiledBeforeJF').value = `0 DAY(S)`;
+      }
+
+      // 3. No. Days Reported: Date of Encoding minus Date Filed
+      if (dateOfEncodingVal && dateFiledVal) {
+        const encDate = new Date(dateOfEncodingVal);
+        const filedDate = new Date(dateFiledVal);
+        const diffDays = Math.round((encDate - filedDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('daysReported').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
+      } else {
+        document.getElementById('daysReported').value = `0 DAY(S)`;
+      }
     }
 
     // API: Submit New Record (Tab 1)
@@ -752,6 +847,10 @@
         dateOfJobFair: document.getElementById('dateOfJobFair').value,
         dateFiled: document.getElementById('dateFiled').value,
         dateIssued: document.getElementById('dateIssued').value,
+        dateOfEncoding: document.getElementById('dateOfEncoding').value,
+        turnaroundTime: document.getElementById('turnaroundTime').value,
+        daysFiledBeforeJF: document.getElementById('daysFiledBeforeJF').value,
+        daysReported: document.getElementById('daysReported').value,
         jobFairVenue: document.getElementById('jobFairVenue').value,
         documentApplied: document.querySelector('input[name="documentApplied"]:checked').value,
         actionTaken: document.querySelector('input[name="actionTaken"]:checked').value,
@@ -767,13 +866,16 @@
         });
         const data = await response.json();
 
-        if (data.success) {
-          showScreenAlert(data.message, 'success');
+        if (data.status === 'success' || data.success) {
+          showScreenAlert(data.message || 'RECORD SUCCESSFULLY SUBMITTED', 'success');
           document.getElementById('encodingForm').reset();
+          const todayStr = new Date().toISOString().split('T')[0];
+          document.getElementById('dateOfEncoding').value = todayStr;
+          calculateCalculatedFields();
           fetchAndRenderTab3Data();
           loadSummaryMatrixData();
         } else {
-          showScreenAlert(data.message, 'danger');
+          showScreenAlert(data.message || 'SUBMISSION FAILED', 'danger');
         }
       } catch (err) {
         showScreenAlert('Cannot reach backend API.', 'danger');
@@ -787,7 +889,8 @@
     async function loadSummaryMatrixData() {
       try {
         const res = await fetch('/api/jf/records');
-        rawSheetRecords = await res.json();
+        const data = await res.json();
+        rawSheetRecords = data.records || data || [];
         renderSummaryTable(rawSheetRecords);
       } catch (err) {
         console.error("Summary fetch error:", err);
@@ -805,9 +908,9 @@
       });
 
       records.forEach(r => {
-        const m = months.find(m => (r.month || r.reportingPeriod || "").toUpperCase().includes(m));
-        const p = provinces.find(p => (r.province || r.fieldOffice || "").toUpperCase().includes(p));
-        const doc = (r.documentApplied || "").toUpperCase();
+        const m = months.find(m => (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || "").toUpperCase().includes(m));
+        const p = provinces.find(p => (r.province || r.fieldOffice || r['FIELD OFFICE'] || "").toUpperCase().includes(p));
+        const doc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || "").toUpperCase();
 
         if (m && p) {
           if (doc.includes("PERMIT")) matrix[m][p].permit++;
@@ -833,7 +936,8 @@
     async function fetchAndRenderTab3Data() {
       try {
         const res = await fetch('/api/jf/records');
-        tab3DetailedRecords = await res.json();
+        const data = await res.json();
+        tab3DetailedRecords = data.records || data || [];
         renderTab3Table();
         renderTab6Schedules();
       } catch (err) {
@@ -841,28 +945,36 @@
       }
     }
 
+    // RENDER ALL COLUMNS IN TAB 3 (DATABASE)
     function renderTab3Table() {
       const tbody = document.getElementById('tab3DataTableBody');
       if (!tab3DetailedRecords || tab3DetailedRecords.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">NO RECORDS FOUND.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="18" class="text-center text-muted">NO RECORDS FOUND.</td></tr>`;
         return;
       }
       tbody.innerHTML = tab3DetailedRecords.map(r => `
         <tr>
           <td>
-            <button class="btn btn-warning btn-sm py-0" onclick="editRecord(${r.rowIndex})">EDIT</button>
-            <button class="btn btn-danger btn-sm py-0" onclick="executeDeleteRecord(${r.rowIndex})">DEL</button>
+            <button class="btn btn-warning btn-sm py-0" onclick="editRecord(${r._rowIndex || r.rowIndex})">EDIT</button>
+            <button class="btn btn-danger btn-sm py-0" onclick="executeDeleteRecord(${r._rowIndex || r.rowIndex})">DEL</button>
           </td>
-          <td>${r.year || '2026'}</td>
-          <td>${r.province || r.fieldOffice || ''}</td>
-          <td>${r.month || r.reportingPeriod || ''}</td>
-          <td class="text-start">${r.sponsor || ''}</td>
-          <td><strong>${r.documentNumber || ''}</strong></td>
-          <td>${r.documentApplied || ''}</td>
-          <td class="text-start">${r.jobFairVenue || ''}</td>
-          <td>${r.dateOfJobFair || ''}</td>
-          <td><span class="badge ${r.actionTaken === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${r.actionTaken}</span></td>
-          <td>${r.contactNumber || ''}</td>
+          <td>${r.year || r['YEAR'] || '2026'}</td>
+          <td>${r.province || r.fieldOffice || r['FIELD OFFICE'] || ''}</td>
+          <td>${r.month || r.reportingPeriod || r['REPORTING PERIOD'] || ''}</td>
+          <td class="text-start">${r.sponsor || r['SPONSOR / ORGANIZER'] || ''}</td>
+          <td>${r.contactNumber || r['CONTACT NUMBER'] || ''}</td>
+          <td><strong>${r.documentNumber || r['PERMIT / CLEARANCE NO.'] || ''}</strong></td>
+          <td>${r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || ''}</td>
+          <td class="text-start">${r.jobFairVenue || r['JOB FAIR VENUE'] || ''}</td>
+          <td>${r.dateOfJobFair || r['DATE OF JOB FAIR'] || ''}</td>
+          <td>${r.dateFiled || r['DATE FILED'] || ''}</td>
+          <td>${r.dateIssued || r['DATE ISSUED'] || ''}</td>
+          <td>${r.dateOfEncoding || r['DATE OF ENCODING'] || ''}</td>
+          <td class="fw-bold text-primary">${r.turnaroundTime || r['TURNAROUND TIME'] || ''}</td>
+          <td class="fw-bold text-success">${r.daysFiledBeforeJF || r['DAYS FILED BEFORE JF'] || ''}</td>
+          <td class="fw-bold text-info">${r.daysReported || r['DAYS REPORTED'] || ''}</td>
+          <td><span class="badge ${(r.actionTaken || r['ACTION TAKEN']) === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${r.actionTaken || r['ACTION TAKEN']}</span></td>
+          <td>${r.disapprovedReason || r['REASON IF DISAPPROVED'] || 'N/A'}</td>
         </tr>
       `).join('');
     }
@@ -876,9 +988,11 @@
           body: JSON.stringify({ rowIndex })
         });
         const data = await res.json();
-        if (data.success) {
-          showScreenAlert(data.message, 'success');
+        if (data.status === 'success' || data.success) {
+          showScreenAlert(data.message || 'RECORD DELETED', 'success');
           fetchAndRenderTab3Data();
+        } else {
+          showScreenAlert(data.message || 'DELETE FAILED', 'danger');
         }
       } catch (err) {
         showScreenAlert("Delete failed", "danger");
@@ -895,12 +1009,12 @@
       if (!tab3DetailedRecords.length) return;
       tbody.innerHTML = tab3DetailedRecords.map(r => `
         <tr>
-          <td class="fw-bold text-primary">${r.dateOfJobFair || 'N/A'}</td>
-          <td class="text-start fw-bold">${r.sponsor || ''}</td>
-          <td>${r.contactNumber || 'N/A'}</td>
-          <td class="text-start">${r.jobFairVenue || ''}</td>
+          <td class="fw-bold text-primary">${r.dateOfJobFair || r['DATE OF JOB FAIR'] || 'N/A'}</td>
+          <td class="text-start fw-bold">${r.sponsor || r['SPONSOR / ORGANIZER'] || ''}</td>
+          <td>${r.contactNumber || r['CONTACT NUMBER'] || 'N/A'}</td>
+          <td class="text-start">${r.jobFairVenue || r['JOB FAIR VENUE'] || ''}</td>
           <td>
-            <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(r.sponsor)}&location=${encodeURIComponent(r.jobFairVenue)}" target="_blank" class="btn btn-outline-primary btn-sm py-0">
+            <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(r.sponsor || r['SPONSOR / ORGANIZER'])}&location=${encodeURIComponent(r.jobFairVenue || r['JOB FAIR VENUE'])}" target="_blank" class="btn btn-outline-primary btn-sm py-0">
               + CALENDAR
             </a>
           </td>
@@ -929,16 +1043,16 @@
       const tbody = document.getElementById('tab5DetailBody');
       tbody.innerHTML = tab3DetailedRecords.map(r => `
         <tr>
-          <td>${r.province || r.fieldOffice || ''}</td>
-          <td>${r.reportingPeriod || ''}</td>
-          <td>${r.dateOfJobFair || ''}</td>
-          <td>${r.jobFairVenue || ''}</td>
-          <td>${r.documentNumber || ''}</td>
-          <td>${r.documentApplied || ''}</td>
-          <td>${r.actionTaken || ''}</td>
+          <td>${r.province || r.fieldOffice || r['FIELD OFFICE'] || ''}</td>
+          <td>${r.reportingPeriod || r['REPORTING PERIOD'] || ''}</td>
+          <td>${r.dateOfJobFair || r['DATE OF JOB FAIR'] || ''}</td>
+          <td>${r.jobFairVenue || r['JOB FAIR VENUE'] || ''}</td>
+          <td>${r.documentNumber || r['PERMIT / CLEARANCE NO.'] || ''}</td>
+          <td>${r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || ''}</td>
+          <td>${r.actionTaken || r['ACTION TAKEN'] || ''}</td>
         </tr>
       `).join('');
     }
-</script>
+  </script>
 </body>
 </html>
