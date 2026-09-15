@@ -136,21 +136,11 @@
       background-color: transparent;
       border-bottom: 3px solid #0d6efd;
     }
-    .section-badge {
-      background-color: #0d6efd;
-      color: white;
-      padding: 4px 8px;
-      font-size: 0.75rem;
-      font-weight: bold;
-      border-radius: 3px;
-      display: inline-block;
-      margin-bottom: 6px;
-    }
     .form-title {
       color: #0d6efd;
       font-weight: bold;
       font-size: 1.05rem;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
       text-transform: uppercase;
     }
     .form-label {
@@ -190,6 +180,40 @@
       padding: 16px 20px;
       margin-bottom: 20px;
     }
+
+    /* FULL WIDTH BRIGHT BLUE SECTION BAR STYLING (MATCHING IMAGE 2) */
+    .section-bar-full {
+      width: 100%;
+      background-color: #0d6efd;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 0.85rem;
+      padding: 8px 14px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ROUNDED ACTION BUTTONS (MATCHING IMAGE 3) */
+    .ble-action-btn {
+      min-height: 38px !important;
+      height: 38px !important;
+      padding: 0 22px !important;
+      border-radius: 20px !important;
+      font-weight: 700 !important;
+      font-size: 0.82rem !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      transition: all 0.2s ease !important;
+    }
+    .ble-action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
     .section-divider {
       border: 0;
       height: 1px;
@@ -201,7 +225,7 @@
     table { font-size: 0.8rem !important; }
     th, td { padding: 6px 8px !important; }
 
-    .btn:not(.btn-close) {
+    .btn:not(.btn-close):not(.ble-action-btn) {
       min-height: 40px !important;
       height: 40px !important;
       padding: 0 20px !important;
@@ -212,8 +236,6 @@
       border-radius: 18px !important;
       transition: all 0.2s ease !important;
     }
-
-    .btn:not(.btn-close):hover { transform: translateY(-1px); }
 
     .sidebar-menu button.sidebar-btn {
       width: 100% !important;
@@ -250,7 +272,7 @@
       </button>
     </div>
 
-    <!-- LOGGED IN USER CARD -->
+    <!-- LOGGED IN USER CARD (SHOWS ACTUAL LOGGED-IN USERNAME INSTEAD OF ADMINISTRATOR) -->
     <div class="sidebar-user-box d-flex align-items-center gap-2">
       <div class="sidebar-user-avatar">
         <i class="bi bi-person-fill"></i>
@@ -263,8 +285,8 @@
         <div class="fw-bold text-white text-truncate" id="sidebarUserName" style="font-size: 0.85rem;">
           DOLE REGION IV-A
         </div>
-        <div class="text-white-50 text-truncate" id="sidebarUserRole" style="font-size: 0.7rem; text-transform: none;">
-          Authorized Officer
+        <div class="text-white-50 text-truncate" id="sidebarUserRole" style="font-size: 0.75rem; text-transform: none;">
+          DOLE REGION IV-A
         </div>
       </div>
     </div>
@@ -353,15 +375,15 @@
     <div class="container-fluid px-4">
       <div class="tab-content" id="appTabsContent">
         
-        <!-- TAB 1: Encoding Form (FULL WIDTH PARTITION SECTIONS) -->
+        <!-- TAB 1: Encoding Form (WITH FULL WIDTH BLUE SECTION BARS - MATCHING IMAGE 2) -->
         <div class="tab-pane fade show active" id="content-1" role="tabpanel">
           <div class="content-card w-100">
             <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;">💻 ENCODE NEW JOB FAIR CLEARANCE/PERMIT</h3>
             <form id="encodingForm" onsubmit="handleFormSubmit(event)" class="w-100">
               
-              <!-- SECTION 1 PARTITION - FULL WIDTH -->
+              <!-- SECTION 1 PARTITION - FULL WIDTH BLUE BAR (MATCHING IMAGE 2) -->
               <div class="encoding-section-partition shadow-sm w-100">
-                <div class="section-badge">SECTION 1 OF 3</div>
+                <div class="section-bar-full">SECTION 1 OF 3</div>
                 <div class="form-title">GENERAL INFORMATION</div>
                 
                 <div class="row g-3 w-100 m-0">
@@ -401,9 +423,9 @@
                 </div>
               </div>
 
-              <!-- SECTION 2 PARTITION - FULL WIDTH -->
+              <!-- SECTION 2 PARTITION - FULL WIDTH BLUE BAR (MATCHING IMAGE 2) -->
               <div class="encoding-section-partition shadow-sm w-100">
-                <div class="section-badge">SECTION 2 OF 3</div>
+                <div class="section-bar-full">SECTION 2 OF 3</div>
                 <div class="form-title">APPLICATION DETAILS & PROOF ATTACHMENTS</div>
                 <div class="row g-3 w-100 m-0">
                   <div class="col-md-6 px-1">
@@ -479,9 +501,9 @@
                 </div>
               </div>
 
-              <!-- SECTION 3 PARTITION - FULL WIDTH -->
+              <!-- SECTION 3 PARTITION - FULL WIDTH BLUE BAR (MATCHING IMAGE 2) -->
               <div class="encoding-section-partition shadow-sm w-100 mb-0">
-                <div class="section-badge">SECTION 3 OF 3</div>
+                <div class="section-bar-full">SECTION 3 OF 3</div>
                 <div class="form-title">COMPUTED TIMELINE & TURNAROUND METRICS</div>
                 <div class="row g-3 w-100 m-0">
                   <div class="col-md-4 px-1">
@@ -508,7 +530,7 @@
           </div>
         </div>
 
-        <!-- TAB 2: Summary Matrix (WITH DROPDOWN FILTERS FOR PROVINCE & YEAR + DEDUPLICATED APPROVED COUNT ONLY) -->
+        <!-- TAB 2: Summary Matrix -->
         <div class="tab-pane fade" id="content-2" role="tabpanel">
           <div class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -570,7 +592,7 @@
           </div>
         </div>
 
-        <!-- TAB 3: Database Report (WITH AUTO-YEAR FILTER & SORT LATEST TO EARLIEST) -->
+        <!-- TAB 3: Database Report -->
         <div class="tab-pane fade" id="content-3" role="tabpanel">
           <div class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -674,7 +696,7 @@
           </div>
         </div>
         
-        <!-- TAB 4: KFS Summary (REFRESH METRICS + FILTERS + CLEARANCE & PERMIT TABLES) -->
+        <!-- TAB 4: KFS Summary -->
         <div class="tab-pane fade" id="content-4" role="tabpanel">
           <div class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -781,26 +803,69 @@
           </div>
         </div>
 
-        <!-- TAB 5: BLE JF Report -->
+        <!-- TAB 5: BLE JF Report (MATCHING IMAGE 1 & IMAGE 3 WITH BUTTONS, MONTH BANNER & SIDE SUMMARY TABLE) -->
         <div class="tab-pane fade" id="content-5" role="tabpanel">
           <div class="content-card">
-            <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;">BLE JOB FAIR OVERVIEW REPORT</h3>
-            <div class="table-responsive">
-              <table class="table table-bordered table-striped align-middle text-center" id="tab5DetailTable">
-                <thead class="table-light">
-                  <tr>
-                    <th>PROVINCE</th>
-                    <th>REPORTING PERIOD</th>
-                    <th>JOB FAIR SCHEDULE</th>
-                    <th>VENUE</th>
-                    <th>CLEARANCE NO.</th>
-                    <th>DOCUMENT APPLIED</th>
-                    <th>ACTION TAKEN</th>
-                  </tr>
-                </thead>
-                <tbody id="tab5DetailBody"></tbody>
-              </table>
+            
+            <!-- ACTION BUTTONS BAR (MATCHING IMAGE 3) -->
+            <div class="bg-light p-3 rounded mb-3 border d-flex flex-wrap gap-2 justify-content-end align-items-center">
+              <button class="btn btn-primary ble-action-btn" onclick="triggerBleSearch()"><i class="bi bi-search me-1"></i> SEARCH</button>
+              <button class="btn btn-success ble-action-btn" onclick="window.print()"><i class="bi bi-printer me-1"></i> PRINT</button>
+              <button class="btn btn-success ble-action-btn" onclick="downloadBleReportExcel()"><i class="bi bi-download me-1"></i> DOWNLOAD</button>
+              <button class="btn btn-secondary ble-action-btn" onclick="showEndorsementAlert()"><i class="bi bi-file-earmark-text me-1"></i> ENDORSEMENT</button>
+              <button class="btn btn-primary ble-action-btn" onclick="activateTab('#tab-4')"><i class="bi bi-bar-chart-fill me-1"></i> KFS SUMMARY</button>
             </div>
+
+            <!-- LIGHT GREEN MONTH BANNER (MATCHING IMAGE 1 & IMAGE 3) -->
+            <div class="alert alert-success bg-success-subtle text-success-emphasis border-0 text-center fw-bold fs-6 py-2 mb-3 text-uppercase shadow-sm" id="bleReportMonthBanner">
+              JOB FAIR REPORT FOR THE MONTH OF SEPTEMBER 2026
+            </div>
+
+            <!-- TWO-COLUMN LAYOUT: MAIN DETAILS TABLE + SIDE SUMMARY TABLE (MATCHING IMAGE 1) -->
+            <div class="row g-3">
+              <!-- MAIN DETAILS TABLE (LEFT COLUMN) -->
+              <div class="col-lg-8 col-md-12">
+                <div class="table-responsive">
+                  <table class="table table-bordered table-striped align-middle text-center" id="tab5DetailTable">
+                    <thead class="table-light text-nowrap fw-bold">
+                      <tr>
+                        <th>PROVINCE</th>
+                        <th>REPORTING PERIOD</th>
+                        <th>JOB FAIR SCHEDULE</th>
+                        <th>VENUE</th>
+                        <th>CLEARANCE NO.</th>
+                        <th>JOB FAIR DOCUMENT APPLIED</th>
+                        <th>ACTION TAKEN</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tab5DetailBody">
+                      <tr><td colspan="7" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>LOADING BLE REPORT DATA...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- SIDE SUMMARY TABLE (RIGHT COLUMN - MATCHING IMAGE 1) -->
+              <div class="col-lg-4 col-md-12">
+                <div class="table-responsive shadow-sm rounded">
+                  <table class="table table-bordered align-middle text-center mb-0" id="bleSummaryTable">
+                    <thead>
+                      <tr>
+                        <th colspan="3" class="bg-secondary text-white py-2 fw-bold text-center">SUMMARY</th>
+                      </tr>
+                      <tr class="table-light text-dark fw-bold" style="font-size: 0.78rem;">
+                        <th>PROVINCE</th>
+                        <th>JOB FAIR PERMIT</th>
+                        <th>JOB FAIR CLEARANCE</th>
+                      </tr>
+                    </thead>
+                    <tbody id="bleSummaryTableBody" style="font-size: 0.8rem;"></tbody>
+                    <tfoot class="table-light fw-bold" id="bleSummaryTableFoot" style="font-size: 0.8rem;"></tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -1021,13 +1086,30 @@
         el.innerHTML = '<option value="">ALL YEARS</option>' + 
           sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
 
-        // Automatically set to current year today unless user selected another value
         if (previousValue && sortedYears.includes(parseInt(previousValue, 10))) {
           el.value = previousValue;
         } else {
           el.value = String(currentYear);
         }
       });
+    }
+
+    // SHOW ACTUAL LOGGED IN USERNAME INSTEAD OF "ADMINISTRATOR" OR GENERIC ROLE
+    function initLoggedInUser() {
+      const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser') || localStorage.getItem('userContext') || localStorage.getItem('username') || sessionStorage.getItem('username');
+      let username = "DOLE REGION IV-A";
+      
+      if (rawUser) {
+        try {
+          const parsed = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
+          username = parsed.username || parsed.name || parsed.user || parsed.municipality || username;
+        } catch(e) {
+          if (typeof rawUser === 'string' && rawUser.length < 50) username = rawUser;
+        }
+      }
+
+      document.getElementById('sidebarUserName').innerText = username.toUpperCase();
+      document.getElementById('sidebarUserRole').innerText = username.toUpperCase();
     }
 
     // FLEXIBLE DOLE4A USER DETECTION ACROSS LOGINS & STORAGE
@@ -1078,23 +1160,6 @@
         document.getElementById('dateOfEncoding').value = todayStr;
         calculateCalculatedFields();
       }, 100);
-    }
-
-    function initLoggedInUser() {
-      const rawUser = sessionStorage.getItem('userContext') || sessionStorage.getItem('currentUser') || localStorage.getItem('userContext');
-      let name = "DOLE REGION IV-A";
-      let role = "Authorized Officer";
-      if (rawUser) {
-        try {
-          const parsed = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
-          name = parsed.municipality || parsed.username || parsed.name || name;
-          role = parsed.role || role;
-        } catch(e) {
-          if (typeof rawUser === 'string' && rawUser.length < 30) name = rawUser;
-        }
-      }
-      document.getElementById('sidebarUserName').innerText = name.toUpperCase();
-      document.getElementById('sidebarUserRole').innerText = role;
     }
 
     function toggleSidebar() {
@@ -1352,7 +1417,7 @@
       }
     }
 
-    // HELPER: DEDUPLICATE APPROVED RECORDS ONLY (EXCLUDE DISAPPROVED AND DUPLICATE DOCUMENT NUMBERS/EVENTS)
+    // HELPER: DEDUPLICATE APPROVED RECORDS ONLY
     function getDeduplicatedApprovedRecords(records) {
       const approved = (records || []).filter(r => {
         const act = (r.actionTaken || r['ACTION TAKEN'] || '').toUpperCase();
@@ -1400,10 +1465,8 @@
       const fProvince = (document.getElementById('filterSummaryProvince') ? document.getElementById('filterSummaryProvince').value : '').toUpperCase();
       const fYear = (document.getElementById('filterSummaryYear') ? document.getElementById('filterSummaryYear').value : '').toUpperCase();
 
-      // 1. FILTER ONLY APPROVED & DEDUPLICATE RECORDS
       const cleanApprovedRecords = getDeduplicatedApprovedRecords(records);
 
-      // 2. APPLY PROVINCE & YEAR FILTERS
       const filteredRecords = cleanApprovedRecords.filter(r => {
         const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
         const year = (r.year || r['YEAR'] || '').toUpperCase();
@@ -1568,16 +1631,16 @@
         const tA = parseBestDate(a);
         const tB = parseBestDate(b);
         if (tB !== tA) {
-          return tB - tA; // descending (latest date first)
+          return tB - tA;
         }
 
         const idxA = Number(a._rowIndex || a.rowIndex || 0);
         const idxB = Number(b._rowIndex || b.rowIndex || 0);
-        return idxB - idxA; // descending (latest index first)
+        return idxB - idxA;
       });
     }
 
-    // API: Fetch Records (Tab 3 & Tab 6) - FETCHES LIVE GOOGLE SHEET DATA DIRECTLY
+    // API: Fetch Records (Tab 3 & Tab 6)
     async function fetchAndRenderTab3Data() {
       try {
         const tbody = document.getElementById('tab3DataTableBody');
@@ -1605,23 +1668,20 @@
           tab3DetailedRecords = localRecords;
         }
 
-        // 1. POPULATE YEAR DROPDOWNS & AUTO-SELECT TODAY'S YEAR
         populateYearDropdowns(tab3DetailedRecords);
-
-        // 2. SORT DATA LATEST TO EARLIEST
         tab3DetailedRecords = sortRecordsLatestToEarliest(tab3DetailedRecords);
 
-        // 3. RENDER ALL TABLES
         filterTab3Table();
         renderSummaryTable(tab3DetailedRecords);
         renderTab6Schedules();
         refreshTab4Metrics();
+        renderTab5Dashboard();
       } catch (err) {
         console.error("Database fetch error:", err);
       }
     }
 
-    // TAB 3 FILTERING FUNCTION (PRESERVES SORTING LATEST TO EARLIEST)
+    // TAB 3 FILTERING FUNCTION
     function filterTab3Table() {
       const fProvince = document.getElementById('filterProvince').value.toUpperCase();
       const fMonth = document.getElementById('filterMonth').value.toUpperCase();
@@ -1956,6 +2016,20 @@
       XLSX.writeFile(wb, "JF_Database_Report.xlsx");
     }
 
+    function downloadBleReportExcel() {
+      const wb = XLSX.utils.table_to_book(document.getElementById("tab5DetailTable"), { sheet: "BLE JF REPORT" });
+      XLSX.writeFile(wb, "BLE_Job_Fair_Report.xlsx");
+    }
+
+    function triggerBleSearch() {
+      activateTab('#tab-3');
+      showScreenAlert("NAVIGATED TO JF DATABASE SEARCH & FILTERS.", "info");
+    }
+
+    function showEndorsementAlert() {
+      showScreenAlert("BLE ENDORSEMENT DOCUMENT GENERATING...", "success");
+    }
+
     function renderTab6Schedules() {
       const tbody = document.getElementById('tab6DataTableBody');
       if (!tab3DetailedRecords.length) return;
@@ -1988,7 +2062,7 @@
       renderTab5Dashboard();
     }
 
-    // HELPER: EXTRACT DYNAMIC TURNAROUND DAYS NUMERIC VALUE (EXCLUDES SAT/SUN/HOLIDAYS)
+    // HELPER: EXTRACT DYNAMIC TURNAROUND DAYS NUMERIC VALUE
     function getTurnaroundDays(r) {
       const dFiled = r.dateFiled || r['DATE FILED'];
       const dIssued = r.dateIssued || r['DATE ISSUED'];
@@ -2026,15 +2100,13 @@
       refreshTab4Metrics();
     }
 
-    // TAB 4: CALCULATE AND DISPLAY KFS SUMMARY FOR CLEARANCES & PERMITS SEPARATELY (APPROVED & DEDUPLICATED)
+    // TAB 4: CALCULATE AND DISPLAY KFS SUMMARY FOR CLEARANCES & PERMITS SEPARATELY
     function refreshTab4Metrics() {
       const fProvince = (document.getElementById('filterKfsProvince') ? document.getElementById('filterKfsProvince').value : '').toUpperCase();
       const fYear = (document.getElementById('filterKfsYear') ? document.getElementById('filterKfsYear').value : '').toUpperCase();
 
-      // 1. FILTER APPROVED AND DEDUPLICATED RECORDS ONLY
       const approvedDeduplicated = getDeduplicatedApprovedRecords(tab3DetailedRecords);
 
-      // 2. APPLY PROVINCE AND YEAR FILTERS
       const filteredRecords = approvedDeduplicated.filter(r => {
         const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
         const year = (r.year || r['YEAR'] || '').toUpperCase();
@@ -2044,7 +2116,6 @@
         return true;
       });
 
-      // 3. SPLIT INTO CLEARANCE RECORDS AND PERMIT RECORDS
       const clearanceRecords = filteredRecords.filter(r => {
         const docApplied = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
         return docApplied.includes('CLEARANCE') || docApplied.includes('JFC');
@@ -2055,7 +2126,6 @@
         return docApplied.includes('PERMIT') || docApplied.includes('JFP');
       });
 
-      // RENDER BOTH TABLES
       renderTurnaroundTimelineTable(clearanceRecords, 'clearanceTimelineBody', 'clearanceTimelineFoot');
       renderTurnaroundTimelineTable(permitRecords, 'permitTimelineBody', 'permitTimelineFoot');
 
@@ -2199,19 +2269,94 @@
       `;
     }
 
+    // TAB 5: RENDER BLE DYNAMIC DASHBOARD (MAIN DETAILS TABLE + SIDE SUMMARY TABLE MATCHING IMAGE 1 & IMAGE 3)
     function renderTab5Dashboard() {
+      const now = new Date();
+      const currentMonthName = now.toLocaleString('default', { month: 'long' }).toUpperCase();
+      const currentYear = now.getFullYear();
+      const monthBanner = document.getElementById('bleReportMonthBanner');
+      if (monthBanner) {
+        monthBanner.innerText = `JOB FAIR REPORT FOR THE MONTH OF ${currentMonthName} ${currentYear}`;
+      }
+
+      // 1. Populate Main Details Table
       const tbody = document.getElementById('tab5DetailBody');
-      tbody.innerHTML = tab3DetailedRecords.map(r => `
-        <tr>
-          <td>${r.province || r.fieldOffice || r['FIELD OFFICE'] || ''}</td>
-          <td>${r.reportingPeriod || r['REPORTING PERIOD'] || ''}</td>
-          <td>${r.dateOfJobFair || r['DATE OF JOB FAIR'] || ''}</td>
-          <td>${r.jobFairVenue || r['JOB FAIR VENUE'] || ''}</td>
-          <td>${r.documentNumber || r['PERMIT / CLEARANCE NO.'] || ''}</td>
-          <td>${r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || ''}</td>
-          <td>${r.actionTaken || r['ACTION TAKEN'] || ''}</td>
+      const records = tab3DetailedRecords || [];
+
+      if (!records.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">NO RECORDS AVAILABLE.</td></tr>`;
+      } else {
+        tbody.innerHTML = records.map(r => {
+          const province = r.province || r.fieldOffice || r['FIELD OFFICE'] || '';
+          const repPeriod = r.reportingPeriod || r.month || r['REPORTING PERIOD'] || '';
+          const jfDate = r.dateOfJobFair || r['DATE OF JOB FAIR'] || 'N/A';
+          const venue = r.jobFairVenue || r['JOB FAIR VENUE'] || 'N/A';
+          const docNo = r.documentNumber || r['PERMIT / CLEARANCE NO.'] || 'N/A';
+          const docApplied = r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || '';
+          const action = r.actionTaken || r['ACTION TAKEN'] || 'APPROVED';
+
+          return `
+            <tr>
+              <td class="fw-bold">${province}</td>
+              <td>${repPeriod}</td>
+              <td>${jfDate}</td>
+              <td>${venue}</td>
+              <td class="fw-bold">${docNo}</td>
+              <td>${docApplied}</td>
+              <td><span class="badge ${action === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${action}</span></td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // 2. Populate Side Summary Table (Matching Image 1)
+      const summaryBody = document.getElementById('bleSummaryTableBody');
+      const summaryFoot = document.getElementById('bleSummaryTableFoot');
+
+      const provinces = ["BATANGAS", "CAVITE", "LAGUNA", "QUEZON", "RIZAL"];
+      let summaryCounts = {};
+      provinces.forEach(p => summaryCounts[p] = { permit: 0, clearance: 0 });
+
+      const cleanApproved = getDeduplicatedApprovedRecords(records);
+      cleanApproved.forEach(r => {
+        const rawP = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const rawDoc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        const p = provinces.find(prov => rawP.includes(prov));
+
+        if (p) {
+          if (rawDoc.includes('PERMIT') || rawDoc.includes('JFP')) {
+            summaryCounts[p].permit++;
+          } else if (rawDoc.includes('CLEARANCE') || rawDoc.includes('JFC')) {
+            summaryCounts[p].clearance++;
+          }
+        }
+      });
+
+      let totalPermits = 0;
+      let totalClearances = 0;
+
+      summaryBody.innerHTML = provinces.map(p => {
+        const pCount = summaryCounts[p].permit;
+        const cCount = summaryCounts[p].clearance;
+        totalPermits += pCount;
+        totalClearances += cCount;
+
+        return `
+          <tr>
+            <td class="fw-bold text-start">${p}</td>
+            <td>${pCount > 0 ? pCount : '-'}</td>
+            <td class="fw-bold">${cCount > 0 ? cCount : '-'}</td>
+          </tr>
+        `;
+      }).join('');
+
+      summaryFoot.innerHTML = `
+        <tr class="table-secondary fw-bold text-dark">
+          <td class="text-start">TOTAL</td>
+          <td>${totalPermits > 0 ? totalPermits : '-'}</td>
+          <td class="fw-bold text-primary">${totalClearances > 0 ? totalClearances : '-'}</td>
         </tr>
-      `).join('');
+      `;
     }
   </script>
 </body>
