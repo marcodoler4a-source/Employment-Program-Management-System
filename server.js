@@ -1,517 +1,2991 @@
-// ==========================================
-// DOLE CALABARZON EXPRESS SERVER (server.js)
-// ==========================================
-
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const {
-  getCurrentUserContext,
-  isUserAuthorized
-} = require('./users');
-const {
-  authenticateUser,
-  changeUserPassword,
-  resetUserPassword
-} = require('./auth');
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-const PAGE_CONFIG = {
-  'login':           { files: ['login', 'Login'], title: 'DOLE Employment Program | CALABARZON' },
-  'dashboard':       { files: ['Dashboard', 'dashboard', 'GIP', 'gip', 'Index'], title: 'Dashboard | CALABARZON' },
-  'mer':             { files: ['mer', 'Mer', 'MER'], title: 'JF MER Summary and Reports | CALABARZON' },
-  'jfencoding':      { files: ['JFEncoding', 'JfEncoding', 'jfencoding', 'Encoding', 'encoding', 'index', 'Index'], title: 'JF Encoding | CALABARZON' },
-  'nationalreports': { files: ['NationalReports', 'nationalreports', 'National_Reports'], title: 'Job Fair Reports | CALABARZON' },
-  'bleforms':        { files: ['BleForms', 'bleforms', 'BLEForms'], title: 'BleForms | CALABARZON' },
-  'sprs':            { files: ['BleForms', 'bleforms', 'SPRS', 'sprs'], title: 'SPRS / BleForms | CALABARZON' },
-  'index':           { files: ['Index', 'index', 'jobfairs_index', 'JobFairs', 'jobfairs'], title: 'Job Fairs System | CALABARZON' },
-  'gip':             { files: ['GIP', 'gip', 'Gip', 'Index', 'index'], title: 'GIP | CALABARZON' },
-  'spes':            { files: ['SPES', 'spes', 'Index', 'index'], title: 'SPES | CALABARZON' },
-  'jobfairs':        { files: ['jobfairs_index', 'JobFairs', 'Index', 'index'], title: 'Job Fairs System | CALABARZON' }
-};
-
-const VIEWS_DIR = path.join(__dirname, 'public');
-
-function getPageHtml(pageName) {
-  const cleanName = String(pageName || '').trim().toLowerCase();
-  const fileMap = {
-    'dashboard': ['Dashboard', 'dashboard'],
-    'login': ['login', 'Login'],
-    'mer': ['mer', 'Mer', 'MER'],
-    'jfencoding': ['JFEncoding', 'JfEncoding', 'jfencoding', 'Encoding', 'index', 'Index'],
-    'nationalreports': ['NationalReports', 'nationalreports'],
-    'bleforms': ['BleForms', 'bleforms'],
-    'sprs': ['BleForms', 'bleforms', 'SPRS'],
-    'gip': ['GIP', 'gip', 'Gip', 'Index', 'index'],
-    'index': ['Index', 'index', 'jobfairs_index', 'JobFairs'],
-    'jobfairs': ['jobfairs_index', 'JobFairs', 'Index', 'index']
-  };
-
-  const candidates = fileMap[cleanName] || [pageName];
-  for (const fileCandidate of candidates) {
-    const filename = fileCandidate.endsWith('.html') ? fileCandidate : `${fileCandidate}.html`;
-    const filepath = path.join(VIEWS_DIR, filename);
-    if (fs.existsSync(filepath)) {
-      return fs.readFileSync(filepath, 'utf8');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JOB FAIR PERMIT/CLEARANCE ISSUANCES ENCODING & RECORDS</title>
+  <!-- Bootstrap CSS & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- SheetJS Library for Excel Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: Arial, sans-serif;
+      text-transform: uppercase;
+      overflow-x: hidden;
+      font-size: 0.9rem;
     }
-  }
-  throw new Error(`Could not find HTML file for page: ${pageName}`);
-}
 
-// HELPER: RENDER HTML OUTPUT WITH DYNAMIC TITLE & USER CONTEXT INJECTION FOR ALL HTML PAGES
-function tryRenderHtmlOutput(fileNames, title, req = null) {
-  for (const fileName of fileNames) {
-    const candidateName = fileName.endsWith('.html') ? fileName : `${fileName}.html`;
-    const filePath = path.join(VIEWS_DIR, candidateName);
-    if (fs.existsSync(filePath)) {
-      let content = fs.readFileSync(filePath, 'utf8');
-      
-      // Extract dynamic username from query parameters or headers if available
-      let usernameParam = '';
-      if (req && req.query) {
-        usernameParam = req.query.username || req.query.user || req.query.office || req.query.account || '';
-      }
-      
-      usernameParam = String(usernameParam).trim();
-
-      // Prepare User Context Script to inject into <head> across ALL HTML files
-      let injectScript = '';
-      if (usernameParam && usernameParam.toUpperCase() !== 'ADMINISTRATOR') {
-        const cleanUser = usernameParam.toUpperCase().replace(/"/g, '\\"');
-        injectScript = `
-        <script>
-          (function() {
-            try {
-              var u = "${cleanUser}";
-              sessionStorage.setItem("username", u);
-              sessionStorage.setItem("userContext", JSON.stringify({ username: u, name: u, role: u }));
-              localStorage.setItem("username", u);
-              localStorage.setItem("userContext", JSON.stringify({ username: u, name: u, role: u }));
-              window.currentUser = u;
-              window.username = u;
-            } catch(e){}
-          })();
-        </script>`;
-      }
-
-      if (content.includes('<head>')) {
-        let metaAndTitle = `<head>`;
-        if (injectScript) metaAndTitle += injectScript;
-        if (title) metaAndTitle += `<title>${title}</title><meta name="viewport" content="width=device-width, initial-scale=1">`;
-        content = content.replace('<head>', metaAndTitle);
-      }
-
-      return content;
+    #sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 260px;
+      height: 100vh;
+      background-color: #1a365d;
+      color: white;
+      z-index: 1040;
+      transition: all 0.3s ease;
+      box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
     }
-  }
-  return null;
-}
+    #sidebar.collapsed { left: -260px; }
+    .sidebar-brand {
+      padding: 1.2rem 1.2rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      background: #11223f;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .sidebar-user-box {
+      padding: 12px 14px;
+      margin: 10px 12px 6px 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+    }
+    .sidebar-user-avatar {
+      width: 36px;
+      height: 36px;
+      background: #0d6efd;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    .sidebar-menu {
+      list-style: none;
+      padding: 0.6rem 0.8rem;
+      margin: 0;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+    .sidebar-menu li { margin-bottom: 0.35rem; }
+    .sidebar-menu button.sidebar-btn {
+      background: transparent;
+      border: none;
+      color: #cbd5e1;
+      width: 100%;
+      padding: 10px 14px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      border-radius: 6px;
+      font-size: 0.92rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .sidebar-menu button.sidebar-btn:hover {
+      background-color: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+    .sidebar-menu button.sidebar-btn.active {
+      background-color: #0d6efd;
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .sidebar-menu button.sidebar-btn i { font-size: 1.1rem; }
 
-function handleDoGet(req, res) {
-  const rawPage = req.query.page ? String(req.query.page).trim() : 'login';
-  const cleanPage = rawPage.toLowerCase();
+    #main-content {
+      margin-left: 260px;
+      transition: all 0.3s ease;
+      min-height: 100vh;
+    }
+    #main-content.expanded { margin-left: 0; }
 
-  const target = PAGE_CONFIG[cleanPage] || {
-    files: [rawPage, rawPage.toLowerCase()],
-    title: 'Job Fair Report System | CALABARZON'
-  };
+    @media (max-width: 768px) {
+      #sidebar { left: -260px; }
+      #sidebar.mobile-show { left: 0; }
+      #main-content { margin-left: 0 !important; }
+    }
 
-  const output = tryRenderHtmlOutput(target.files, target.title, req);
-  if (output) return res.send(output);
+    .header-banner {
+      background-color: #0d6efd;
+      color: white;
+      padding: 14px 24px;
+      border-radius: 6px;
+      margin-top: 10px;
+      margin-bottom: 0;
+    }
+    .header-banner h3 { font-size: 1.35rem; }
+    .nav-tabs {
+      border-bottom: 2px solid #dee2e6;
+      background-color: #ffffff;
+      padding-left: 15px;
+      margin-top: 10px;
+    }
+    .nav-tabs .nav-link {
+      color: #495057;
+      font-weight: 600;
+      border: none;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+    }
+    .nav-tabs .nav-link.active {
+      color: #0d6efd;
+      background-color: transparent;
+      border-bottom: 3px solid #0d6efd;
+    }
+    .form-title {
+      color: #0d6efd;
+      font-weight: bold;
+      font-size: 1.05rem;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .form-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 3px;
+    }
+    .form-label span { color: red; }
+    .form-control, .form-select {
+      background-color: #f8f9fa;
+      border: 1px solid #ced4da;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+    .form-control:focus, .form-select:focus {
+      background-color: #fff;
+      border-color: #0d6efd;
+      box-shadow: none;
+    }
+    .content-card {
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      padding: 20px 24px;
+      margin-top: 15px;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .encoding-section-partition {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #0d6efd;
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
 
-  // Final fallback
-  const loginOutput = tryRenderHtmlOutput(['login', 'Login', 'GIP', 'gip', 'Index'], 'Job Fair Report System | CALABARZON', req);
-  if (loginOutput) return res.send(loginOutput);
+    /* FULL WIDTH BRIGHT BLUE SECTION BAR STYLING (MATCHING IMAGE 2) */
+    .section-bar-full {
+      width: 100%;
+      background-color: #0d6efd;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 0.85rem;
+      padding: 8px 14px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
 
-  return res.status(404).send(
-    `<h3 style="font-family:Arial;padding:40px;">Page Not Found: ${rawPage}<br><br>Available pages: login, dashboard, gip, mer, nationalreports</h3>`
-  );
-}
+    /* ROUNDED ACTION BUTTONS (MATCHING IMAGE 3) */
+    .ble-action-btn {
+      min-height: 36px !important;
+      height: 36px !important;
+      padding: 0 18px !important;
+      border-radius: 20px !important;
+      font-weight: 700 !important;
+      font-size: 0.8rem !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      transition: all 0.2s ease !important;
+    }
+    .ble-action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
 
-// Route mapping for GET ?page=...
-app.get('/', handleDoGet);
+    .section-divider {
+      border: 0;
+      height: 1px;
+      background-color: #0d6efd;
+      opacity: 0.2;
+      margin: 15px 0;
+      width: 100%;
+    }
+    table { font-size: 0.8rem !important; }
+    th, td { padding: 6px 8px !important; }
 
-// Route mapping for clean URLs like /login, /dashboard, /jfencoding
-app.get('/:pageName', (req, res, next) => {
-  const pageName = req.params.pageName.toLowerCase();
-  if (PAGE_CONFIG[pageName]) {
-    req.query.page = pageName;
-    return handleDoGet(req, res);
-  }
-  next();
-});
+    .btn:not(.btn-close):not(.ble-action-btn) {
+      min-height: 40px !important;
+      height: 40px !important;
+      padding: 0 20px !important;
+      margin: 0 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 18px !important;
+      transition: all 0.2s ease !important;
+    }
 
-// Helper route for raw HTML retrieval with User Context Injection
-app.get('/html/:page', (req, res) => {
-  try {
-    const rawContent = getPageHtml(req.params.page);
-    let usernameParam = (req.query.username || req.query.user || req.query.office || '').trim().toUpperCase();
+    .sidebar-menu button.sidebar-btn {
+      width: 100% !important;
+      height: 40px !important;
+      padding: 10px 14px !important;
+      border-radius: 8px !important;
+    }
+
+    /* CENTERED SCREEN ALERT STYLING */
+    #screenAlertContainer {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1055;
+      width: 90%;
+      max-width: 520px;
+      display: none;
+    }
+
+    /* PRINT SPECIFIC STYLING (FOR BLE REPORT PRINTING ONLY - MATCHING IMAGE 1 & PICTURE 1) */
+    @media print {
+      @page {
+        size: landscape;
+        margin: 8mm;
+      }
+      body * {
+        visibility: hidden !important;
+      }
+      .print-ble-only, .print-ble-only * {
+        visibility: visible !important;
+      }
+      .print-ble-only {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .no-print, #sidebar, .header-banner, .nav-tabs, .btn, select, label, .ble-action-btn, #screenAlertContainer {
+        display: none !important;
+      }
+      #printableBleReportArea .row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        margin: 0 !important;
+      }
+      #printableBleReportArea .col-lg-8, #printableBleReportArea .col-md-12:first-child {
+        width: 72% !important;
+        flex: 0 0 72% !important;
+        max-width: 72% !important;
+        padding-right: 8px !important;
+      }
+      #printableBleReportArea .col-lg-4, #printableBleReportArea .col-md-12:last-child {
+        width: 27% !important;
+        flex: 0 0 27% !important;
+        max-width: 27% !important;
+        padding-left: 8px !important;
+      }
+      #printableBleReportArea table {
+        font-size: 0.7rem !important;
+        width: 100% !important;
+      }
+      #printableBleReportArea th, #printableBleReportArea td {
+        padding: 4px 6px !important;
+      }
+    }
+  </style>
+</head>
+<body class="text-uppercase">
+
+  <!-- SIDEBAR NAVIGATION -->
+  <nav id="sidebar">
+    <div class="sidebar-brand d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center text-truncate">
+        <i class="bi bi-shield-fill-check me-2 fs-5 text-primary"></i>
+        <span class="fw-bold">DOLE / PESO</span>
+      </div>
+      <button class="btn btn-sm btn-outline-light border-0 py-0 px-2 text-white-50" title="Hide Sidebar" onclick="toggleSidebar()">
+        <i class="bi bi-chevron-bar-left fs-5 d-none d-md-inline"></i>
+        <i class="bi bi-x-lg fs-6 d-md-none"></i>
+      </button>
+    </div>
+
+    <!-- LOGGED IN USER CARD (SHOWS ACTUAL LOGGED-IN USERNAME INSTEAD OF ADMINISTRATOR) -->
+    <div class="sidebar-user-box d-flex align-items-center gap-2" onclick="promptChangeUsername()" style="cursor: pointer;" title="Click to edit username/office">
+      <div class="sidebar-user-avatar">
+        <i class="bi bi-person-fill"></i>
+      </div>
+      <div class="overflow-hidden" style="min-width: 0;">
+        <div class="d-flex align-items-center gap-1">
+          <span class="badge bg-success p-1 rounded-circle" style="width: 7px; height: 7px;"></span>
+          <span class="text-white-50" style="font-size: 0.65rem;">LOGGED IN USER</span>
+        </div>
+        <div class="fw-bold text-white text-truncate" id="sidebarUserName" style="font-size: 0.85rem;">
+          DOLE4A
+        </div>
+        <div class="text-white-50 text-truncate" id="sidebarUserRole" style="font-size: 0.75rem; text-transform: none;">
+          DOLE4A
+        </div>
+      </div>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li class="sidebar-section">Main</li>
+      <li>
+        <button type="button" class="sidebar-btn" onclick="goToPage('Dashboard')">
+          <span class="w-100 text-start"><i class="bi bi-speedometer2 me-2"></i> Dashboard</span>
+        </button>
+      </li>
+      <li class="sidebar-section">Job Fair Module</li>
+      <li>
+        <button type="button" class="sidebar-btn" onclick="goToPage('NationalReports')">
+          <span class="w-100 text-start"><i class="bi bi-briefcase me-2"></i> Job Fair Reports</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="sidebar-btn" onclick="goToPage('mer')">
+          <span class="w-100 text-start"><i class="bi bi-briefcase me-2"></i> MER Reports</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="sidebar-btn active" onclick="activateTab('#tab-1')">
+          <span class="w-100 text-start"><i class="bi bi-calendar3 me-2"></i> JF Clearance Encoding</span>
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- MAIN CONTENT WRAPPER -->
+  <div id="main-content">
+    <div class="container-fluid px-4 pt-3">
+      <div class="header-banner d-flex justify-content-between align-items-center shadow-sm">
+        <div class="d-flex align-items-center gap-3">
+          <button class="btn btn-outline-light btn-sm d-md-none" onclick="toggleSidebar()">
+            <i class="bi bi-list fs-5"></i>
+          </button>
+          <div>
+            <h3 class="fw-bold mb-1"><i class="bi bi-file-earmark-check me-2"></i>JOB FAIR PERMIT/CLEARANCE ISSUANCES ENCODING & RECORDS</h3>
+            <p class="mb-0 text-white-50" style="font-size: 0.8rem; text-transform: none;">Encode new permit/clearance applications, filter historical records, and view live monitoring sheets.</p>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-light btn-sm fw-semibold" onclick="handleDashboardLogout()">
+            <i class="bi bi-box-arrow-right me-1"></i> Logout
+          </button>
+        </div>
+      </div>
+    </div>
     
-    if (usernameParam && usernameParam !== 'ADMINISTRATOR' && rawContent.includes('<head>')) {
-      const injectScript = `
-      <script>
-        (function() {
-          try {
-            var u = "${usernameParam.replace(/"/g, '\\"')}";
-            sessionStorage.setItem("username", u);
-            localStorage.setItem("username", u);
-            window.currentUser = u;
-          } catch(e){}
-        })();
-      </script>`;
-      return res.send(rawContent.replace('<head>', `<head>${injectScript}`));
-    }
-    res.send(rawContent);
-  } catch (err) {
-    res.status(404).json({ error: err.message });
-  }
-});
+    <!-- CENTERED SCREEN ALERT BOX -->
+    <div id="screenAlertContainer">
+      <div id="screenAlertBox" class="alert alert-dismissible fade show fw-bold text-uppercase shadow-lg text-center" role="alert">
+        <span id="screenAlertMessage"></span>
+        <button type="button" class="btn-close" onclick="hideScreenAlert()"></button>
+      </div>
+    </div>
 
-// ==========================================
-// AUTHENTICATION & USER API ENDPOINTS
-// ==========================================
+    <!-- Navigation Tabs -->
+    <div class="container-fluid px-4">
+      <ul class="nav nav-tabs" id="appTabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active" id="tab-1" data-bs-toggle="tab" data-bs-target="#content-1" type="button">ENCODING FORM</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="tab-2" data-bs-toggle="tab" data-bs-target="#content-2" type="button">JF SUMMARY</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="tab-3" data-bs-toggle="tab" data-bs-target="#content-3" type="button">JF DATABASE</button>
+        </li>
+        <!-- KFS SUMMARY TAB (RESTRICTED ACCESS - ONLY VISIBLE IF LOGGED IN USER IS DOLE4A) -->
+        <li class="nav-item" id="tab4NavItem" style="display: none;">
+          <button class="nav-link" id="tab-4" data-bs-toggle="tab" data-bs-target="#content-4" type="button" onclick="checkTab4Access(event)">KFS SUMMARY</button>
+        </li>
+        <!-- BLE JF REPORT TAB (RESTRICTED ACCESS - ONLY VISIBLE IF LOGGED IN USER IS DOLE4A) -->
+        <li class="nav-item" id="tab5NavItem" style="display: none;">
+          <button class="nav-link" id="tab-5" data-bs-toggle="tab" data-bs-target="#content-5" type="button" onclick="checkTab5Access(event)">BLE JF REPORT</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="tab-6" data-bs-toggle="tab" data-bs-target="#content-6" type="button">ADD TO CALENDAR</button>
+        </li>
+      </ul>
+    </div>
 
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  let result = {};
+    <!-- Main Content Container -->
+    <div class="container-fluid px-4">
+      <div class="tab-content" id="appTabsContent">
+        
+        <!-- TAB 1: Encoding Form (WITH FULL WIDTH BLUE SECTION BARS - MATCHING IMAGE 2) -->
+        <div class="tab-pane fade show active" id="content-1" role="tabpanel">
+          <div class="content-card w-100">
+            <h3 class="text-primary fw-bold mb-3" style="font-size: 1.15rem;">💻 ENCODE NEW JOB FAIR CLEARANCE/PERMIT</h3>
+            <form id="encodingForm" onsubmit="handleFormSubmit(event)" class="w-100">
+              
+              <!-- SECTION 1 PARTITION - FULL WIDTH BLUE BAR (MATCHING IMAGE 2) -->
+              <div class="encoding-section-partition shadow-sm w-100">
+                <div class="section-bar-full">SECTION 1 OF 3</div>
+                <div class="form-title">GENERAL INFORMATION</div>
+                
+                <div class="row g-3 w-100 m-0">
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">REPORTING PERIOD <span>*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="reportingPeriod" required oninput="convertToUppercase(this)">
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">FIELD OFFICE <span>*</span></label>
+                    <select class="form-select text-uppercase" id="fieldOffice" required onchange="updateSponsorsAndNumber()">
+                      <option value="" selected disabled>-- SELECT FIELD OFFICE --</option>
+                      <option value="BATANGAS FIELD OFFICE">BATANGAS FIELD OFFICE</option>
+                      <option value="CAVITE FIELD OFFICE">CAVITE FIELD OFFICE</option>
+                      <option value="LAGUNA FIELD OFFICE">LAGUNA FIELD OFFICE</option>
+                      <option value="QUEZON FIELD OFFICE">QUEZON FIELD OFFICE</option>
+                      <option value="RIZAL FIELD OFFICE">RIZAL FIELD OFFICE</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">SPONSOR / ORGANIZER <span>*</span></label>
+                    <select class="form-select text-muted text-uppercase" id="sponsor" required>
+                      <option selected disabled>-- SELECT FIELD OFFICE FIRST --</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">CONTACT NUMBER <span>*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="contactNumber" placeholder="YOUR ANSWER" required oninput="convertToUppercase(this)">
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">DATE OF JOB FAIR <span>*</span></label>
+                    <input type="date" class="form-control text-muted" id="dateOfJobFair" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">JOB FAIR VENUE <span>*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="jobFairVenue" placeholder="YOUR ANSWER" required oninput="convertToUppercase(this)">
+                  </div>
+                </div>
+              </div>
 
-  try {
-    result = authenticateUser(username, password) || {};
-  } catch (e) {
-    result = { success: true, message: "Login successful" };
-  }
+              <!-- SECTION 2 PARTITION - FULL WIDTH BLUE BAR (MATCHING IMAGE 2) -->
+              <div class="encoding-section-partition shadow-sm w-100">
+                <div class="section-bar-full">SECTION 2 OF 3</div>
+                <div class="form-title">APPLICATION DETAILS & PROOF ATTACHMENTS</div>
+                <div class="row g-3 w-100 m-0">
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">JOB FAIR DOCUMENT APPLIED <span>*</span></label>
+                    <div class="mt-1">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="documentApplied" id="docPermit" value="JOB FAIR PERMIT" required onchange="updateNumberFormat()">
+                        <label class="form-check-label" for="docPermit">JOB FAIR PERMIT</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="documentApplied" id="docClearance" value="JOB FAIR CLEARANCE" required onchange="updateNumberFormat()">
+                        <label class="form-check-label" for="docClearance">JOB FAIR CLEARANCE</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6 px-1">
+                    <label class="form-label">ACTION TAKEN <span>*</span></label>
+                    <div class="mt-1">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="actionTaken" id="actionApproved" value="APPROVED" required onchange="toggleDisapprovedReason()">
+                        <label class="form-check-label" for="actionApproved">APPROVED</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="actionTaken" id="actionDisapproved" value="DISAPPROVED" required onchange="toggleDisapprovedReason()">
+                        <label class="form-check-label" for="actionDisapproved">DISAPPROVED</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12 px-1">
+                    <label class="form-label">REASON IF DISAPPROVED <span>*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="disapprovedReason" value="N/A" required oninput="convertToUppercase(this)">
+                  </div>
+                  <div class="col-12 px-1">
+                    <label class="form-label">PERMIT / CLEARANCE NO. <span>*</span></label>
+                    <div class="text-muted mb-1" style="font-size: 0.75rem;" id="formatGuide">FORMAT: SELECT DOCUMENT TYPE AND FIELD OFFICE FIRST</div>
+                    <div class="row g-2 align-items-center w-100 m-0">
+                      <div class="col-md-3 px-1">
+                        <input type="text" class="form-control bg-light fw-bold text-center text-uppercase" id="numPrefix" readonly placeholder="PREFIX">
+                      </div>
+                      <div class="col-md-3 px-1">
+                        <input type="text" class="form-control text-center bg-light text-uppercase" id="numMiddle" readonly placeholder="YYYY-MM">
+                      </div>
+                      <div class="col-md-3 px-1" id="extraGroupContainer">
+                        <input type="text" class="form-control text-center bg-light text-uppercase" id="numExtra" readonly placeholder="YY">
+                      </div>
+                      <div class="col-md-3 px-1">
+                        <input type="text" class="form-control text-center text-uppercase" id="numDigit" placeholder="001" maxlength="3" required oninput="convertToUppercase(this)">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">DATE FILED <span>*</span></label>
+                    <input type="date" class="form-control text-muted" id="dateFiled" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">DATE ISSUED <span>*</span></label>
+                    <input type="date" class="form-control text-muted" id="dateIssued" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">DATE OF ENCODING <span>*</span></label>
+                    <input type="date" class="form-control text-muted" id="dateOfEncoding" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
+                  </div>
 
-  const cleanUser = String(username || 'DOLE4A').trim().toUpperCase();
-  const finalUser = cleanUser === 'ADMINISTRATOR' ? 'DOLE4A' : cleanUser;
+                  <!-- PDF / PROOF UPLOAD FIELDS -->
+                  <div class="col-md-6 px-1 mt-2">
+                    <label class="form-label">UPLOAD PROOF OF DATE APPLICATION RECEIVED <small class="text-muted">(PDF/IMAGE)</small></label>
+                    <input type="file" class="form-control" id="proofReceivedFile" accept=".pdf,image/*">
+                  </div>
+                  <div class="col-md-6 px-1 mt-2">
+                    <label class="form-label">UPLOAD PROOF OF DATE JFP/JFC RELEASED <small class="text-muted">(PDF/IMAGE)</small></label>
+                    <input type="file" class="form-control" id="proofReleasedFile" accept=".pdf,image/*">
+                  </div>
+                </div>
+              </div>
 
-  // Guarantee that logged-in username & userContext details are returned to client for sidebar display across all HTML pages
-  result.success = result.success !== false;
-  result.username = finalUser;
-  result.user = result.user || {
-    username: finalUser,
-    name: finalUser,
-    role: finalUser,
-    office: finalUser
-  };
+              <!-- SECTION 3 PARTITION - FULL WIDTH BLUE BAR (MATCHING IMAGE 2) -->
+              <div class="encoding-section-partition shadow-sm w-100 mb-0">
+                <div class="section-bar-full">SECTION 3 OF 3</div>
+                <div class="form-title">COMPUTED TIMELINE & TURNAROUND METRICS</div>
+                <div class="row g-3 w-100 m-0">
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">TURNAROUND TIME (DAYS) <small class="text-muted">(Filed vs Issued less Sat/Sun/Holidays)</small></label>
+                    <input type="text" class="form-control bg-light fw-bold text-primary" id="turnaroundTime" readonly placeholder="0 DAYS">
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">NO. DAYS FILED BEFORE JF <small class="text-muted">(Job Fair Date vs Date Filed)</small></label>
+                    <input type="text" class="form-control bg-light fw-bold text-success" id="daysFiledBeforeJF" readonly placeholder="0 DAYS">
+                  </div>
+                  <div class="col-md-4 px-1">
+                    <label class="form-label">NO. DAYS REPORTED <small class="text-muted">(Encoding Date vs Date Filed)</small></label>
+                    <input type="text" class="form-control bg-light fw-bold text-info" id="daysReported" readonly placeholder="0 DAYS">
+                  </div>
+                  
+                  <div class="col-12 px-1 mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-success w-75 py-2 fw-bold shadow-sm" id="submitBtn">SUBMIT RECORD</button>
+                    <button type="reset" class="btn btn-light border w-25 py-2 text-secondary fw-bold" onclick="resetFormWithDate()">CLEAR FORM</button>
+                  </div>
+                </div>
+              </div>
 
-  res.json(result);
-});
+            </form>
+          </div>
+        </div>
 
-app.post('/api/auth/change-password', (req, res) => {
-  const { username, currentPassword, newPassword } = req.body;
-  res.json(changeUserPassword(username, currentPassword, newPassword));
-});
+        <!-- TAB 2: Summary Matrix -->
+        <div class="tab-pane fade" id="content-2" role="tabpanel">
+          <div class="content-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h3 class="text-primary fw-bold mb-0" style="font-size: 1.15rem;">📊 JOB FAIR SUMMARY TABLE</h3>
+              <span class="badge bg-success px-3 py-2 fs-6"><i class="bi bi-check-circle-fill me-1"></i> APPROVED & DEDUPLICATED RECORDS ONLY</span>
+            </div>
 
-app.post('/api/auth/reset-password', (req, res) => {
-  const { username } = req.body;
-  res.json(resetUserPassword(username));
-});
+            <!-- INTERACTIVE SUMMARY FILTERS -->
+            <div class="bg-light p-3 rounded mb-3 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold mb-1">PROVINCE / FIELD OFFICE</label>
+                  <select class="form-select form-select-sm" id="filterSummaryProvince" onchange="filterSummaryTable()">
+                    <option value="">ALL PROVINCES</option>
+                    <option value="BATANGAS">BATANGAS</option>
+                    <option value="CAVITE">CAVITE</option>
+                    <option value="LAGUNA">LAGUNA</option>
+                    <option value="QUEZON">QUEZON</option>
+                    <option value="RIZAL">RIZAL</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold mb-1">YEAR (AUTO-SELECTED TODAY)</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterSummaryYear" onchange="filterSummaryTable()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                  <button class="btn btn-outline-secondary btn-sm w-100 fw-bold" onclick="resetSummaryFilters()">RESET FILTERS</button>
+                </div>
+              </div>
+            </div>
 
-// USER CONTEXT ENDPOINT: DYNAMICALLY RETURNS LOGGED IN USER FOR SIDEBAR DISPLAY (e.g. DOLE4A, CALAMBA, SANTAROSA)
-app.get('/api/user/context', (req, res) => {
-  const requestedUser = (req.query.username || req.query.user || req.query.office || '').trim();
-  let userCtx = null;
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped align-middle text-center" id="summaryTable">
+                <thead class="table-light fw-bold">
+                  <tr>
+                    <th rowspan="2" class="align-middle">MONTH</th>
+                    <th colspan="2">BATANGAS</th>
+                    <th colspan="2">CAVITE</th>
+                    <th colspan="2">LAGUNA</th>
+                    <th colspan="2">QUEZON</th>
+                    <th colspan="2">RIZAL</th>
+                    <th rowspan="2" class="align-middle bg-warning-subtle">TOTAL JFP</th>
+                    <th rowspan="2" class="align-middle bg-info-subtle">TOTAL JFC</th>
+                  </tr>
+                  <tr>
+                    <th>PERMIT</th><th>CLEARANCE</th>
+                    <th>PERMIT</th><th>CLEARANCE</th>
+                    <th>PERMIT</th><th>CLEARANCE</th>
+                    <th>PERMIT</th><th>CLEARANCE</th>
+                    <th>PERMIT</th><th>CLEARANCE</th>
+                  </tr>
+                </thead>
+                <tbody id="summaryTableBody"></tbody>
+                <tfoot class="table-light fw-bold" id="summaryTableFoot"></tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
 
-  if (requestedUser) {
-    try {
-      userCtx = getCurrentUserContext(requestedUser);
-    } catch (e) {}
-  }
+        <!-- TAB 3: Database Report -->
+        <div class="tab-pane fade" id="content-3" role="tabpanel">
+          <div class="content-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h3 class="text-primary fw-bold mb-0" style="font-size: 1.15rem;">💾 JF DATABASE <small class="text-muted fs-6">(SORTED: LATEST TO EARLIEST)</small></h3>
+              <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="downloadTab3Excel()">
+                <i class="bi bi-download me-1"></i> DOWNLOAD EXCEL
+              </button>
+            </div>
 
-  const defaultName = (requestedUser && requestedUser.toUpperCase() !== 'ADMINISTRATOR') ? requestedUser.toUpperCase() : "DOLE4A";
+            <!-- INTERACTIVE DATABASE FILTERS -->
+            <div class="bg-light p-3 rounded mb-3 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">PROVINCE</label>
+                  <select class="form-select form-select-sm" id="filterProvince" onchange="filterTab3Table()">
+                    <option value="">ALL PROVINCES</option>
+                    <option value="BATANGAS">BATANGAS</option>
+                    <option value="CAVITE">CAVITE</option>
+                    <option value="LAGUNA">LAGUNA</option>
+                    <option value="QUEZON">QUEZON</option>
+                    <option value="RIZAL">RIZAL</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">MONTH</label>
+                  <select class="form-select form-select-sm" id="filterMonth" onchange="filterTab3Table()">
+                    <option value="">ALL MONTHS</option>
+                    <option value="JANUARY">JANUARY</option>
+                    <option value="FEBRUARY">FEBRUARY</option>
+                    <option value="MARCH">MARCH</option>
+                    <option value="APRIL">APRIL</option>
+                    <option value="MAY">MAY</option>
+                    <option value="JUNE">JUNE</option>
+                    <option value="JULY">JULY</option>
+                    <option value="AUGUST">AUGUST</option>
+                    <option value="SEPTEMBER">SEPTEMBER</option>
+                    <option value="OCTOBER">OCTOBER</option>
+                    <option value="NOVEMBER">NOVEMBER</option>
+                    <option value="DECEMBER">DECEMBER</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">YEAR (AUTO TODAY)</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterYear" onchange="filterTab3Table()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">DOCUMENT</label>
+                  <select class="form-select form-select-sm" id="filterDocument" onchange="filterTab3Table()">
+                    <option value="">ALL DOCUMENTS</option>
+                    <option value="PERMIT">JOB FAIR PERMIT</option>
+                    <option value="CLEARANCE">JOB FAIR CLEARANCE</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">ACTION TAKEN</label>
+                  <select class="form-select form-select-sm" id="filterAction" onchange="filterTab3Table()">
+                    <option value="">ALL ACTIONS</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="DISAPPROVED">DISAPPROVED</option>
+                  </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                  <button class="btn btn-outline-secondary btn-sm w-100 fw-bold" onclick="resetTab3Filters()">RESET FILTERS</button>
+                </div>
+              </div>
+            </div>
 
-  if (!userCtx || !userCtx.username) {
-    userCtx = {
-      username: defaultName,
-      name: defaultName,
-      role: defaultName,
-      office: defaultName,
-      fieldOffice: defaultName
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped align-middle text-center" id="tab3TableElement">
+                <thead class="table-light text-nowrap">
+                  <tr>
+                    <th>ACTION</th>
+                    <th>YEAR</th>
+                    <th>PROVINCE</th>
+                    <th>REPORTING PERIOD</th>
+                    <th>SPONSOR/ORGANIZER</th>
+                    <th>CONTACT NUMBER</th>
+                    <th>PERMIT/CLEARANCE NO.</th>
+                    <th>DOCUMENT</th>
+                    <th>VENUE</th>
+                    <th>JOB FAIR DATE</th>
+                    <th>DATE FILED</th>
+                    <th>DATE ISSUED</th>
+                    <th>DATE OF ENCODING</th>
+                    <th>TURNAROUND TIME</th>
+                    <th>DAYS FILED BEFORE JF</th>
+                    <th>DAYS REPORTED</th>
+                    <th>ACTION TAKEN</th>
+                    <th>REASON IF DISAPPROVED</th>
+                    <th>PROOF RECEIVED</th>
+                    <th>PROOF RELEASED</th>
+                  </tr>
+                </thead>
+                <tbody id="tab3DataTableBody">
+                  <tr><td colspan="20" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>LOADING LIVE DATABASE RECORDS...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- TAB 4: KFS Summary -->
+        <div class="tab-pane fade" id="content-4" role="tabpanel">
+          <div class="content-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h3 class="text-primary fw-bold mb-0" style="font-size: 1.15rem;">📊 KFS SUMMARY METRICS</h3>
+                <small class="text-muted">BENCHMARK TURNAROUND TIME BREAKDOWN PER MONTH (APPROVED & DEDUPLICATED RECORDS ONLY)</small>
+              </div>
+              <button class="btn btn-primary btn-sm fw-bold shadow-sm" onclick="refreshTab4Metrics()">
+                <i class="bi bi-arrow-clockwise me-1"></i> REFRESH METRIC
+              </button>
+            </div>
+
+            <!-- KFS FILTERS -->
+            <div class="bg-light p-3 rounded mb-4 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold mb-1">PROVINCE / FIELD OFFICE</label>
+                  <select class="form-select form-select-sm" id="filterKfsProvince" onchange="refreshTab4Metrics()">
+                    <option value="">ALL PROVINCES</option>
+                    <option value="BATANGAS">BATANGAS</option>
+                    <option value="CAVITE">CAVITE</option>
+                    <option value="LAGUNA">LAGUNA</option>
+                    <option value="QUEZON">QUEZON</option>
+                    <option value="RIZAL">RIZAL</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold mb-1">YEAR (AUTO-SELECTED TODAY)</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterKfsYear" onchange="refreshTab4Metrics()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                  <button class="btn btn-outline-secondary btn-sm w-100 fw-bold" onclick="resetKfsFilters()">RESET FILTERS</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TABLE 1: CLEARANCE TURNAROUND TIME METRICS ONLY -->
+            <div class="mb-5">
+              <div class="d-flex align-items-center mb-2 gap-2">
+                <span class="badge bg-info text-dark fw-bold px-3 py-2 fs-6">TABLE 1</span>
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-file-earmark-check-fill me-1 text-info"></i> JOB FAIR CLEARANCE (JFC) TURNAROUND TIME SUMMARY TABLE</h5>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+                  <thead class="table-info text-dark text-nowrap">
+                    <tr>
+                      <th rowspan="2" class="align-middle">MONTH</th>
+                      <th colspan="4" class="bg-success text-white">WITHIN PT (&le; 3 DAYS)</th>
+                      <th rowspan="2" class="bg-dark text-white align-middle">&lt; 4 (WITHIN PT)</th>
+                      <th colspan="4">4 TO 7 DAYS</th>
+                      <th rowspan="2" class="align-middle">&lt; 15</th>
+                      <th colspan="6">15 TO 20+ DAYS</th>
+                      <th rowspan="2" class="bg-success text-white align-middle">TOTAL WITHIN PT</th>
+                      <th rowspan="2" class="bg-danger text-white align-middle">TOTAL BEYOND PT</th>
+                      <th rowspan="2" class="bg-warning text-dark align-middle">BEYOND PT DAYS</th>
+                    </tr>
+                    <tr>
+                      <th>&lt; 1</th><th>1</th><th>2</th><th>3</th>
+                      <th>4</th><th>5</th><th>6</th><th>7</th>
+                      <th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20+</th>
+                    </tr>
+                  </thead>
+                  <tbody id="clearanceTimelineBody"></tbody>
+                  <tfoot class="table-light fw-bold" id="clearanceTimelineFoot"></tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- TABLE 2: PERMIT TURNAROUND TIME METRICS ONLY -->
+            <div>
+              <div class="d-flex align-items-center mb-2 gap-2">
+                <span class="badge bg-warning text-dark fw-bold px-3 py-2 fs-6">TABLE 2</span>
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-file-earmark-text-fill me-1 text-warning"></i> JOB FAIR PERMIT (JFP) TURNAROUND TIME SUMMARY TABLE</h5>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+                  <thead class="table-warning text-dark text-nowrap">
+                    <tr>
+                      <th rowspan="2" class="align-middle">MONTH</th>
+                      <th colspan="4" class="bg-success text-white">WITHIN PT (&le; 3 DAYS)</th>
+                      <th rowspan="2" class="bg-dark text-white align-middle">&lt; 4 (WITHIN PT)</th>
+                      <th colspan="4">4 TO 7 DAYS</th>
+                      <th rowspan="2" class="align-middle">&lt; 15</th>
+                      <th colspan="6">15 TO 20+ DAYS</th>
+                      <th rowspan="2" class="bg-success text-white align-middle">TOTAL WITHIN PT</th>
+                      <th rowspan="2" class="bg-danger text-white align-middle">TOTAL BEYOND PT</th>
+                      <th rowspan="2" class="bg-warning text-dark align-middle">BEYOND PT DAYS</th>
+                    </tr>
+                    <tr>
+                      <th>&lt; 1</th><th>1</th><th>2</th><th>3</th>
+                      <th>4</th><th>5</th><th>6</th><th>7</th>
+                      <th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20+</th>
+                    </tr>
+                  </thead>
+                  <tbody id="permitTimelineBody"></tbody>
+                  <tfoot class="table-light fw-bold" id="permitTimelineFoot"></tfoot>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB 5: BLE JF Report (WITH MONTH & YEAR FILTERS, ACTION BUTTONS & PRINT ONLY REPORT AREA) -->
+        <div class="tab-pane fade" id="content-5" role="tabpanel">
+          <div class="content-card">
+            
+            <!-- INTERACTIVE BLE FILTERS & ACTION BUTTONS -->
+            <div class="bg-light p-3 rounded mb-3 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold mb-1">MONTH</label>
+                  <select class="form-select form-select-sm" id="filterBleMonth" onchange="renderTab5Dashboard()">
+                    <option value="">ALL MONTHS</option>
+                    <option value="JANUARY">JANUARY</option>
+                    <option value="FEBRUARY">FEBRUARY</option>
+                    <option value="MARCH">MARCH</option>
+                    <option value="APRIL">APRIL</option>
+                    <option value="MAY">MAY</option>
+                    <option value="JUNE">JUNE</option>
+                    <option value="JULY">JULY</option>
+                    <option value="AUGUST">AUGUST</option>
+                    <option value="SEPTEMBER">SEPTEMBER</option>
+                    <option value="OCTOBER">OCTOBER</option>
+                    <option value="NOVEMBER">NOVEMBER</option>
+                    <option value="DECEMBER">DECEMBER</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold mb-1">YEAR (AUTO TODAY)</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterBleYear" onchange="renderTab5Dashboard()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-6 d-flex justify-content-end align-items-end gap-2 flex-wrap">
+                  <button class="btn btn-outline-secondary ble-action-btn" onclick="resetBleFilters()">RESET</button>
+                  <button class="btn btn-primary ble-action-btn" onclick="triggerBleSearch()"><i class="bi bi-search me-1"></i> SEARCH</button>
+                  <button class="btn btn-success ble-action-btn" onclick="printBleReportOnly()"><i class="bi bi-printer me-1"></i> PRINT</button>
+                  <button class="btn btn-success ble-action-btn" onclick="downloadBleReportExcel()"><i class="bi bi-download me-1"></i> DOWNLOAD</button>
+                  <button class="btn btn-secondary ble-action-btn" onclick="openEndorsementModal()"><i class="bi bi-file-earmark-text me-1"></i> ENDORSEMENT</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- PRINTABLE AREA FOR BLE REPORT ONLY (MATCHING IMAGE 2) -->
+            <div id="printableBleReportArea" class="print-ble-only">
+              <!-- LIGHT GREEN MONTH BANNER (MATCHING IMAGE 1 & IMAGE 2) -->
+              <div class="alert alert-success bg-success-subtle text-success-emphasis border-0 text-center fw-bold fs-6 py-2 mb-3 text-uppercase shadow-sm" id="bleReportMonthBanner">
+                JOB FAIR REPORT FOR THE MONTH OF SEPTEMBER 2026
+              </div>
+
+              <!-- TWO-COLUMN LAYOUT: MAIN DETAILS TABLE + SIDE SUMMARY TABLE (MATCHING IMAGE 1 & IMAGE 2) -->
+              <div class="row g-3">
+                <!-- MAIN DETAILS TABLE (LEFT COLUMN) -->
+                <div class="col-lg-8 col-md-12">
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-striped align-middle text-center" id="tab5DetailTable">
+                      <thead class="table-light text-nowrap fw-bold">
+                        <tr>
+                          <th>PROVINCE</th>
+                          <th>REPORTING PERIOD</th>
+                          <th>JOB FAIR SCHEDULE</th>
+                          <th>VENUE</th>
+                          <th>CLEARANCE NO.</th>
+                          <th>JOB FAIR DOCUMENT APPLIED</th>
+                          <th>ACTION TAKEN</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tab5DetailBody">
+                        <tr><td colspan="7" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>LOADING BLE REPORT DATA...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- SIDE SUMMARY TABLE (RIGHT COLUMN - MATCHING IMAGE 1 & IMAGE 2) -->
+                <div class="col-lg-4 col-md-12">
+                  <div class="table-responsive shadow-sm rounded">
+                    <table class="table table-bordered align-middle text-center mb-0" id="bleSummaryTable">
+                      <thead>
+                        <tr>
+                          <th colspan="3" class="bg-secondary text-white py-2 fw-bold text-center">SUMMARY</th>
+                        </tr>
+                        <tr class="table-light text-dark fw-bold" style="font-size: 0.78rem;">
+                          <th>PROVINCE</th>
+                          <th>JOB FAIR PERMIT</th>
+                          <th>JOB FAIR CLEARANCE</th>
+                        </tr>
+                      </thead>
+                      <tbody id="bleSummaryTableBody" style="font-size: 0.8rem;"></tbody>
+                      <tfoot class="table-light fw-bold" id="bleSummaryTableFoot" style="font-size: 0.8rem;"></tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB 6: JOB FAIR SCHEDULES & DETAILS (MATCHING PICTURE 1) -->
+        <div class="tab-pane fade" id="content-6" role="tabpanel">
+          <div class="content-card shadow-sm border">
+            <!-- TOP HEADER WITH OPEN GOOGLE CALENDAR & DOWNLOAD BUTTONS -->
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <div>
+                <h4 class="text-primary fw-bold mb-1" style="font-size: 1.15rem;">
+                  <i class="bi bi-calendar-check-fill me-2"></i>JOB FAIR SCHEDULES & DETAILS
+                </h4>
+                <small class="text-muted">View Upcoming Schedules, Filter By Field Office, Month, Or Search Keywords, Sorted By Timestamp.</small>
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary rounded-pill btn-sm px-3 fw-bold" onclick="window.open('https://calendar.google.com/calendar/r', '_blank')">
+                  <i class="bi bi-calendar3 me-1"></i> OPEN GOOGLE CALENDAR
+                </button>
+                <button class="btn btn-success rounded-pill btn-sm px-3 fw-bold" onclick="downloadTab6Excel()">
+                  <i class="bi bi-download me-1"></i> DOWNLOAD
+                </button>
+              </div>
+            </div>
+
+            <!-- FILTER BAR (MATCHING PICTURE 1) -->
+            <div class="bg-light p-3 rounded mb-3 border">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">PROVINCE</label>
+                  <select class="form-select form-select-sm text-uppercase" id="filterTab6Province" onchange="renderTab6Schedules()">
+                    <option value="">ALL PROVINCES</option>
+                    <option value="BATANGAS">BATANGAS</option>
+                    <option value="CAVITE">CAVITE</option>
+                    <option value="LAGUNA">LAGUNA</option>
+                    <option value="QUEZON">QUEZON</option>
+                    <option value="RIZAL">RIZAL</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">MONTH</label>
+                  <select class="form-select form-select-sm text-uppercase" id="filterTab6Month" onchange="renderTab6Schedules()">
+                    <option value="">ALL MONTHS</option>
+                    <option value="JANUARY">JANUARY</option>
+                    <option value="FEBRUARY">FEBRUARY</option>
+                    <option value="MARCH">MARCH</option>
+                    <option value="APRIL">APRIL</option>
+                    <option value="MAY">MAY</option>
+                    <option value="JUNE">JUNE</option>
+                    <option value="JULY">JULY</option>
+                    <option value="AUGUST">AUGUST</option>
+                    <option value="SEPTEMBER">SEPTEMBER</option>
+                    <option value="OCTOBER">OCTOBER</option>
+                    <option value="NOVEMBER">NOVEMBER</option>
+                    <option value="DECEMBER">DECEMBER</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-bold mb-1">YEAR</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="filterTab6Year" onchange="renderTab6Schedules()">
+                    <option value="">ALL YEARS</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold mb-1">SORT ORDER</label>
+                  <select class="form-select form-select-sm text-uppercase" id="filterTab6Sort" onchange="renderTab6Schedules()">
+                    <option value="LATEST">LATEST TO EARLIEST (TIMESTAMP)</option>
+                    <option value="EARLIEST">EARLIEST TO LATEST</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold mb-1">SEARCH ORGANIZER / VENUE</label>
+                  <input type="text" class="form-control form-select-sm text-uppercase" id="filterTab6Search" placeholder="ENTER SEARCH KEYWORD..." oninput="renderTab6Schedules()">
+                </div>
+              </div>
+              <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="btn btn-secondary rounded-pill btn-sm px-4 fw-bold" onclick="resetTab6Filters()">RESET FILTERS</button>
+                <button class="btn btn-primary rounded-pill btn-sm px-4 fw-bold" onclick="renderTab6Schedules()"><i class="bi bi-arrow-clockwise me-1"></i> REFRESH LIST</button>
+              </div>
+            </div>
+
+            <!-- TABLE -->
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped align-middle text-center" id="tab6TableElement">
+                <thead class="table-light fw-bold text-uppercase">
+                  <tr>
+                    <th style="width: 15%;">DATE OF JOB FAIR</th>
+                    <th style="width: 25%;">ORGANIZER</th>
+                    <th style="width: 15%;">CONTACT NUMBER</th>
+                    <th style="width: 30%;">VENUE</th>
+                    <th style="width: 15%;">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody id="tab6DataTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTERED DELETE CONFIRMATION MODAL -->
+  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-danger text-white py-2">
+          <h5 class="modal-title fw-bold fs-6" id="deleteConfirmModalLabel"><i class="bi bi-exclamation-triangle-fill me-2"></i>CONFIRM DELETION</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center py-4 px-4">
+          <i class="bi bi-trash text-danger display-4 mb-2 d-block"></i>
+          <h5 class="fw-bold text-dark mb-2">ARE YOU SURE?</h5>
+          <p class="text-secondary small mb-0">Are you sure you want to delete this Job Fair record? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer justify-content-center bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-4 fw-bold" data-bs-dismiss="modal">CANCEL</button>
+          <button type="button" class="btn btn-danger btn-sm px-4 fw-bold" id="confirmDeleteBtn" onclick="confirmDeleteRecord()">DELETE RECORD</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OFFICIAL MEMORANDUM ENDORSEMENT MODAL (MATCHING IMAGE 1) -->
+  <div class="modal fade" id="endorsementModal" tabindex="-1" aria-labelledby="endorsementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-secondary text-white py-2">
+          <h5 class="modal-title fw-bold fs-6" id="endorsementModalLabel"><i class="bi bi-file-earmark-text me-2"></i>OFFICIAL MEMORANDUM ENDORSEMENT</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4" id="endorsementMemoPrintArea" style="background: white; color: black; font-family: 'Times New Roman', serif;">
+          <!-- MEMORANDUM HEADER LOGOS -->
+          <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom border-2 border-primary">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e4/Department_of_Labor_and_Employment_%28DOLE%29.svg" alt="DOLE" style="height: 65px;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+            <div class="text-center">
+              <h6 class="mb-0 text-secondary fw-normal">Republic of the Philippines</h6>
+              <h5 class="fw-bold mb-0 text-dark">DEPARTMENT OF LABOR AND EMPLOYMENT</h5>
+              <p class="mb-0 small fw-bold text-primary">Regional Office No. IV-A (CALABARZON)</p>
+            </div>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/52/Bagong_Pilipinas_logo.png" alt="Bagong Pilipinas" style="height: 65px;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+          </div>
+
+          <!-- MEMORANDUM DETAILS -->
+          <h4 class="fw-bold text-center mb-4" style="letter-spacing: 2px;">MEMORANDUM</h4>
+          
+          <table class="table table-borderless mb-3 text-uppercase" style="font-size: 0.92rem; color: #000;">
+            <tr>
+              <td style="width: 120px;" class="fw-bold">FOR</td>
+              <td style="width: 20px;" class="fw-bold">:</td>
+              <td class="fw-bold">ATTY. LENNARD CONSTANTINE C. SERRANO<br><span class="fw-normal text-muted style-normal" style="text-transform: none;">Bureau of Local Employment</span></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">FROM</td>
+              <td class="fw-bold">:</td>
+              <td class="fw-bold">Atty. ERWIN N. AQUINO<br><span class="fw-normal text-muted style-normal" style="text-transform: none;">Regional Director</span></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">SUBJECT</td>
+              <td class="fw-bold">:</td>
+              <td class="fw-bold" id="memoSubjectText">REPORT ON ISSUANCE OF JOB FAIR PERMIT/CLEARANCE FOR THE MONTH OF SEPTEMBER 2026</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">DATE</td>
+              <td class="fw-bold">:</td>
+              <td class="fw-bold" id="memoDateText">15 September 2026</td>
+            </tr>
+          </table>
+
+          <hr style="border-top: 2px solid #333;" class="my-3">
+
+          <p class="mb-3 text-none" style="font-size: 0.95rem; text-indent: 30px; text-transform: none;" id="memoBodyIntro">
+            This is to formally endorse this Office's report on Issuance of Job Fair Permit/Clearance for the month of September 2026, with breakdown as follows:
+          </p>
+
+          <!-- DYNAMIC ENDORSEMENT BREAKDOWN TABLE (MATCHING IMAGE 1) -->
+          <div class="my-4 d-flex justify-content-center">
+            <table class="table table-bordered text-center align-middle mb-0" style="max-width: 550px; font-size: 0.9rem; border: 2px solid #333;" id="memoBreakdownTable">
+              <thead class="table-light fw-bold" style="border-bottom: 2px solid #333;">
+                <tr>
+                  <th>PROVINCE</th>
+                  <th>JOB FAIR PERMIT</th>
+                  <th>JOB FAIR CLEARANCE</th>
+                </tr>
+              </thead>
+              <tbody id="memoBreakdownBody"></tbody>
+              <tfoot class="fw-bold table-light" style="border-top: 2px solid #333;" id="memoBreakdownFoot"></tfoot>
+            </table>
+          </div>
+
+          <p class="mb-2" style="font-size: 0.9rem; text-transform: none;">
+            For the complete details, please see attachment for your reference or you may access the consolidated file through this link: <a href="https://tinyurl.com/JFBleReport" target="_blank" class="fw-bold text-primary">tinyurl.com/JFBleReport</a>
+          </p>
+          <p class="mb-4" style="font-size: 0.9rem; text-transform: none;">
+            We hope that you find the said documents in order.
+          </p>
+
+          <!-- FOOTER CONTACT BANNER -->
+          <div class="mt-5 pt-3 border-top small text-muted d-flex justify-content-between align-items-end" style="font-size: 0.68rem; text-transform: none;">
+            <div>
+              <strong class="text-dark">REGIONAL OFFICE</strong><br>
+              Anderson Bldg. II, Parian, Calamba City, Laguna<br>
+              (049)545-7360 / (049)545-7364 / (049)545-0292<br>
+              ro4a@dole.gov.ph | dole4lmsd@yahoo.com
+            </div>
+            <div class="text-end">
+              <strong class="text-dark">FIELD OFFICES:</strong> BATANGAS | CAVITE | LAGUNA | QUEZON | RIZAL
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">CLOSE</button>
+          <button type="button" class="btn btn-success btn-sm px-4 fw-bold" onclick="printEndorsementMemo()"><i class="bi bi-printer me-1"></i> PRINT ENDORSEMENT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT RECORD MODAL -->
+  <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold" id="editModalLabel"><i class="bi bi-pencil-square me-2"></i>EDIT JOB FAIR RECORD</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="editForm" onsubmit="handleEditSubmit(event)">
+          <div class="modal-body">
+            <input type="hidden" id="editRowIndex">
+            
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label">REPORTING PERIOD <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editReportingPeriod" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">FIELD OFFICE <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editFieldOffice" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">SPONSOR / ORGANIZER <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editSponsor" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">CONTACT NUMBER <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editContactNumber" required oninput="convertToUppercase(this)">
+              </div>
+              
+              <!-- PERMIT/CLEARANCE NO. -->
+              <div class="col-md-6">
+                <label class="form-label">PERMIT / CLEARANCE NO. <span>*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control text-uppercase fw-bold bg-light" id="editDocumentNumber" readonly required oninput="convertToUppercase(this)">
+                  <button class="btn btn-outline-danger" type="button" id="unlockDocNumBtn" onclick="unlockDocumentNumber()" title="Unlock with Password">
+                    <i class="bi bi-lock-fill" id="unlockDocNumIcon"></i> UNLOCK
+                  </button>
+                </div>
+                <small class="text-muted" style="font-size: 0.7rem;" id="docNumLockStatus"><i class="bi bi-shield-lock me-1"></i>LOCKED (REQUIRES AUTHORIZATION TO CHANGE)</small>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">JOB FAIR VENUE <span>*</span></label>
+                <input type="text" class="form-control text-uppercase" id="editJobFairVenue" required oninput="convertToUppercase(this)">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DATE OF JOB FAIR <span>*</span></label>
+                <input type="date" class="form-control" id="editDateOfJobFair" required onchange="calculateEditCalculatedFields()" oninput="calculateEditCalculatedFields()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DATE FILED <span>*</span></label>
+                <input type="date" class="form-control" id="editDateFiled" required onchange="calculateEditCalculatedFields()" oninput="calculateEditCalculatedFields()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DATE ISSUED <span>*</span></label>
+                <input type="date" class="form-control" id="editDateIssued" required onchange="calculateEditCalculatedFields()" oninput="calculateEditCalculatedFields()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DATE OF ENCODING <span>*</span></label>
+                <input type="date" class="form-control" id="editDateOfEncoding" required onchange="calculateEditCalculatedFields()" oninput="calculateEditCalculatedFields()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">ACTION TAKEN <span>*</span></label>
+                <select class="form-select text-uppercase" id="editActionTaken" required onchange="toggleEditDisapprovedReason()">
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="DISAPPROVED">DISAPPROVED</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">REASON IF DISAPPROVED</label>
+                <input type="text" class="form-control text-uppercase" id="editDisapprovedReason" oninput="convertToUppercase(this)">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label">TURNAROUND TIME</label>
+                <input type="text" class="form-control bg-light fw-bold text-primary" id="editTurnaroundTime" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DAYS FILED BEFORE JF</label>
+                <input type="text" class="form-control bg-light fw-bold text-success" id="editDaysFiledBeforeJF" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DAYS REPORTED</label>
+                <input type="text" class="form-control bg-light fw-bold text-info" id="editDaysReported" readonly>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
+            <button type="submit" class="btn btn-primary fw-bold" id="editSaveBtn">SAVE CHANGES</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTERED PASSWORD UNLOCK MODAL -->
+  <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-danger text-white py-2">
+          <h5 class="modal-title fw-bold fs-6" id="passwordModalLabel"><i class="bi bi-shield-lock-fill me-2"></i>AUTHORIZATION REQUIRED</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center py-4 px-4">
+          <i class="bi bi-lock text-danger display-4 mb-2 d-block"></i>
+          <p class="fw-bold text-secondary mb-3 style-normal" style="font-size: 0.85rem; text-transform: none;">
+            Enter authorized officer password to unlock Permit/Clearance No. field:
+          </p>
+          <div class="input-group mb-2">
+            <span class="input-group-text bg-light"><i class="bi bi-key-fill text-danger"></i></span>
+            <input type="password" class="form-control text-center fw-bold" id="unlockPasswordField" placeholder="ENTER PASSWORD" style="letter-spacing: 2px;" onkeyup="if(event.key==='Enter') verifyUnlockPassword()">
+          </div>
+          <div id="passwordModalError" class="text-danger fw-bold small mt-2" style="display: none;"></div>
+        </div>
+        <div class="modal-footer justify-content-center bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">CANCEL</button>
+          <button type="button" class="btn btn-danger btn-sm fw-bold px-4" onclick="verifyUnlockPassword()">VERIFY & UNLOCK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let rawSheetRecords = [];
+    let tab3DetailedRecords = [];
+    let screenAlertTimeout = null;
+    let pendingDeleteRowIndex = null;
+
+    // LIVE GOOGLE SHEET CSV EXPORT ENDPOINT (GID 251500066)
+    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1-dN0cj7ozUlH14t7otsucxwDOOOeZ67WoWsQOGZ_aM4/gviz/tq?tqx=out:csv&gid=251500066";
+
+    // Standard Holidays List (MM-DD)
+    const philippineHolidays = [
+      "01-01", // New Year's Day
+      "04-09", // Araw ng Kagitingan
+      "05-01", // Labor Day
+      "06-12", // Independence Day
+      "08-26", // National Heroes Day
+      "11-01", // All Saints' Day
+      "11-30", // Bonifacio Day
+      "12-25", // Christmas Day
+      "12-30"  // Rizal Day
+    ];
+
+    const officeSponsors = {
+      "BATANGAS FIELD OFFICE": ["PESO BATANGAS CITY", "PESO LIPA CITY", "PESO TANAUAN CITY", "BATANGAS STATE UNIVERSITY"],
+      "CAVITE FIELD OFFICE": ["PESO BACOOR CITY", "PESO DASMARIÑAS CITY", "PESO IMUS CITY", "PESO CAVITE PROVINCE"],
+      "LAGUNA FIELD OFFICE": ["PESO CABUYAO CITY", "PESO CALAMBA CITY", "PESO SAN PEDRO CITY", "LAGUNA STATE POLYTECHNIC UNIVERSITY"],
+      "QUEZON FIELD OFFICE": ["PESO LUCENA CITY", "PESO TAYABAS CITY", "SOUTHERN LUZON STATE UNIVERSITY"],
+      "RIZAL FIELD OFFICE": ["PESO ANTIPOLO CITY", "PESO CAINTA", "PESO TAYTAY", "PESO RIZAL PROVINCE"]
     };
-  }
 
-  res.json({
-    success: true,
-    userContext: userCtx,
-    ...userCtx
-  });
-});
+    window.addEventListener('DOMContentLoaded', function() {
+      initLoggedInUser();
+      checkRestrictedTabsVisibility();
+      populateYearDropdowns();
+      fetchAndRenderTab3Data();
 
-app.get('/api/user/authorized', (req, res) => {
-  res.json({ email: req.query.email, authorized: isUserAuthorized(req.query.email) });
-});
+      const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+      document.getElementById('reportingPeriod').value = months[new Date().getMonth()];
 
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('dateOfEncoding').value = todayStr;
 
-// ==========================================
-// JOB FAIR ENCODING & RECORDS BACKEND MODULE
-// ==========================================
-
-const JF_DB_PATH = path.join(__dirname, 'jf_records.json');
-
-function getJfRecords() {
-  try {
-    if (fs.existsSync(JF_DB_PATH)) {
-      return JSON.parse(fs.readFileSync(JF_DB_PATH, 'utf8'));
-    }
-  } catch (err) {
-    console.error("Error reading JF database file:", err.message);
-  }
-  return [];
-}
-
-function saveJfRecords(records) {
-  try {
-    fs.writeFileSync(JF_DB_PATH, JSON.stringify(records, null, 2), 'utf8');
-  } catch (err) {
-    console.error("Error writing JF database file:", err.message);
-  }
-}
-
-app.get('/api/jf/records', (req, res) => {
-  const records = getJfRecords();
-  res.json({ success: true, records: records });
-});
-
-app.get('/api/jf/summary', (req, res) => {
-  const records = getJfRecords();
-  res.json({ success: true, records: records });
-});
-
-app.post('/api/jf/encode', (req, res) => {
-  try {
-    const formData = req.body || {};
-    const records = getJfRecords();
-
-    const dateEnc = formData.dateOfEncoding || formData["DATE OF ENCODING"] || formData.date_of_encoding || "";
-    const turnTime = formData.turnaroundTime || formData["TURNAROUND TIME"] || formData.turnaround_time || "";
-    const daysBefore = formData.daysFiledBeforeJF || formData["DAYS FILED BEFORE JF"] || formData["NO. DAYS FILED BEFORE JF"] || formData.days_filed_before_jf || "";
-    const daysRep = formData.daysReported || formData["DAYS REPORTED"] || formData["NO. DAYS REPORTED"] || formData.days_reported || "";
-
-    const now = new Date();
-    const newRecord = {
-      rowIndex: Date.now(),
-      timestamp: now.toISOString().replace('T', ' ').substring(0, 19),
-      year: now.getFullYear().toString(),
-      month: formData.reportingPeriod || "JANUARY",
-      province: formData.fieldOffice || "BATANGAS FIELD OFFICE",
-      reportingPeriod: formData.reportingPeriod || "",
-      fieldOffice: formData.fieldOffice || "",
-      sponsor: formData.sponsor || "",
-      contactNumber: formData.contactNumber || "",
-      dateOfJobFair: formData.dateOfJobFair || "",
-      dateFiled: formData.dateFiled || "",
-      dateReceived: formData.dateFiled || "",
-      dateIssued: formData.dateIssued || "",
-      dateOfEncoding: dateEnc,
-      turnaroundTime: turnTime,
-      daysFiledBeforeJF: daysBefore,
-      daysReported: daysRep,
-      jobFairVenue: formData.jobFairVenue || "",
-      documentApplied: formData.documentApplied || "",
-      actionTaken: formData.actionTaken || "APPROVED",
-      disapprovedReason: formData.disapprovedReason || "N/A",
-      documentNumber: formData.documentNumber || "",
-      entitiesOverseas: formData.entitiesOverseas || "0",
-      entitiesLocal: formData.entitiesLocal || "0",
-      vacanciesOverseas: formData.vacanciesOverseas || "0",
-      vacanciesLocal: formData.vacanciesLocal || "0",
-
-      "YEAR": now.getFullYear().toString(),
-      "FIELD OFFICE": formData.fieldOffice || "",
-      "REPORTING PERIOD": formData.reportingPeriod || "",
-      "SPONSOR / ORGANIZER": formData.sponsor || "",
-      "CONTACT NUMBER": formData.contactNumber || "",
-      "PERMIT / CLEARANCE NO.": formData.documentNumber || "",
-      "JOB FAIR DOCUMENT APPLIED": formData.documentApplied || "",
-      "JOB FAIR VENUE": formData.jobFairVenue || "",
-      "DATE OF JOB FAIR": formData.dateOfJobFair || "",
-      "DATE FILED": formData.dateFiled || "",
-      "DATE ISSUED": formData.dateIssued || "",
-      "DATE OF ENCODING": dateEnc,
-      "TURNAROUND TIME": turnTime,
-      "DAYS FILED BEFORE JF": daysBefore,
-      "NO. DAYS FILED BEFORE JF": daysBefore,
-      "DAYS REPORTED": daysRep,
-      "NO. DAYS REPORTED": daysRep,
-      "ACTION TAKEN": formData.actionTaken || "APPROVED",
-      "REASON IF DISAPPROVED": formData.disapprovedReason || "N/A",
-
-      ...formData
-    };
-
-    records.push(newRecord);
-    saveJfRecords(records);
-
-    res.json({
-      success: true,
-      message: "Job Fair Record saved successfully!"
+      calculateCalculatedFields();
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
 
-app.post('/api/jf/update-record', (req, res) => {
-  try {
-    const {
-      rowIndex, reportingPeriod, fieldOffice, sponsor, contactNumber,
-      jobFairVenue, dateOfJobFair, dateFiled, dateReceived, dateIssued,
-      dateOfEncoding, actionTaken, disapprovedReason, documentNumber,
-      turnaroundTime, daysFiledBeforeJF, daysReported
-    } = req.body;
+    // DYNAMIC POPULATION & AUTOMATIC DEFAULTING OF ALL YEAR DROPDOWNS TO TODAY'S YEAR
+    function populateYearDropdowns(records = []) {
+      const currentYear = new Date().getFullYear();
+      let yearsSet = new Set([currentYear - 2, currentYear - 1, currentYear, currentYear + 1]);
 
-    let records = getJfRecords();
-    const idx = records.findIndex(r => (r.rowIndex == rowIndex || r._rowIndex == rowIndex));
+      (records || []).forEach(r => {
+        const y = parseInt(r.year || r['YEAR'] || '', 10);
+        if (y && !isNaN(y)) yearsSet.add(y);
+      });
 
-    if (idx !== -1) {
-      if (reportingPeriod !== undefined) {
-        records[idx].reportingPeriod = reportingPeriod;
-        records[idx].month = reportingPeriod;
-        records[idx]["REPORTING PERIOD"] = reportingPeriod;
-      }
-      if (fieldOffice !== undefined) {
-        records[idx].fieldOffice = fieldOffice;
-        records[idx].province = fieldOffice;
-        records[idx]["FIELD OFFICE"] = fieldOffice;
-      }
-      if (sponsor !== undefined) {
-        records[idx].sponsor = sponsor;
-        records[idx]["SPONSOR / ORGANIZER"] = sponsor;
-      }
-      if (contactNumber !== undefined) {
-        records[idx].contactNumber = contactNumber;
-        records[idx]["CONTACT NUMBER"] = contactNumber;
-      }
-      if (jobFairVenue !== undefined) {
-        records[idx].jobFairVenue = jobFairVenue;
-        records[idx]["JOB FAIR VENUE"] = jobFairVenue;
-      }
-      if (dateOfJobFair !== undefined) {
-        records[idx].dateOfJobFair = dateOfJobFair;
-        records[idx]["DATE OF JOB FAIR"] = dateOfJobFair;
-      }
-      if (dateFiled !== undefined) {
-        records[idx].dateFiled = dateFiled;
-        records[idx].dateReceived = dateFiled;
-        records[idx]["DATE FILED"] = dateFiled;
-      }
-      if (dateIssued !== undefined) {
-        records[idx].dateIssued = dateIssued;
-        records[idx]["DATE ISSUED"] = dateIssued;
-      }
+      const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-      if (dateOfEncoding !== undefined) {
-        records[idx].dateOfEncoding = dateOfEncoding;
-        records[idx]["DATE OF ENCODING"] = dateOfEncoding;
-      }
-      if (actionTaken !== undefined) {
-        records[idx].actionTaken = actionTaken;
-        records[idx]["ACTION TAKEN"] = actionTaken;
-      }
-      if (disapprovedReason !== undefined) {
-        records[idx].disapprovedReason = disapprovedReason;
-        records[idx]["REASON IF DISAPPROVED"] = disapprovedReason;
-      }
-      if (documentNumber !== undefined) {
-        records[idx].documentNumber = documentNumber;
-        records[idx]["PERMIT / CLEARANCE NO."] = documentNumber;
-      }
+      const yearDropdownIds = ['filterYear', 'filterSummaryYear', 'filterKfsYear', 'filterBleYear', 'filterTab6Year'];
 
-      if (turnaroundTime !== undefined) {
-        records[idx].turnaroundTime = turnaroundTime;
-        records[idx]["TURNAROUND TIME"] = turnaroundTime;
-      }
-      if (daysFiledBeforeJF !== undefined) {
-        records[idx].daysFiledBeforeJF = daysFiledBeforeJF;
-        records[idx]["DAYS FILED BEFORE JF"] = daysFiledBeforeJF;
-        records[idx]["NO. DAYS FILED BEFORE JF"] = daysFiledBeforeJF;
-      }
-      if (daysReported !== undefined) {
-        records[idx].daysReported = daysReported;
-        records[idx]["DAYS REPORTED"] = daysReported;
-        records[idx]["NO. DAYS REPORTED"] = daysReported;
-      }
+      yearDropdownIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const previousValue = el.value;
+        
+        el.innerHTML = '<option value="">ALL YEARS</option>' + 
+          sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
 
-      saveJfRecords(records);
-      return res.json({ success: true, message: "Record updated successfully!" });
+        if (previousValue && sortedYears.includes(parseInt(previousValue, 10))) {
+          el.value = previousValue;
+        } else {
+          el.value = String(currentYear);
+        }
+      });
+
+      // AUTO-SELECT CURRENT MONTH IN BLE FILTER
+      const bleMonthEl = document.getElementById('filterBleMonth');
+      if (bleMonthEl && !bleMonthEl.value) {
+        const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+        bleMonthEl.value = months[new Date().getMonth()];
+      }
     }
 
-    res.status(404).json({ success: false, message: "Record not found." });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+    // SHOW ACTUAL LOGGED IN USERNAME INSTEAD OF ADMINISTRATOR (MATCHING PICTURE 2 REQUIREMENT)
+    function initLoggedInUser() {
+      // 1. Check URL parameter override (e.g. ?username=DOLE4A or ?user=CALAMBA)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUser = urlParams.get('username') || urlParams.get('user') || urlParams.get('office') || urlParams.get('account');
+      
+      const keys = ['username', 'userContext', 'currentUser', 'user', 'loggedUser', 'loggedInUser', 'userRole', 'account', 'LOGGED_IN_USER', 'USER_NAME'];
+      let detectedUser = urlUser || null;
 
-app.post('/api/jf/delete-record', (req, res) => {
-  try {
-    const { rowIndex } = req.body;
-    let records = getJfRecords();
-
-    const initialLength = records.length;
-    records = records.filter(r => (r.rowIndex != rowIndex && r._rowIndex != rowIndex));
-
-    if (records.length < initialLength) {
-      saveJfRecords(records);
-      return res.json({ success: true, message: "Record deleted successfully!" });
-    }
-
-    res.status(404).json({ success: false, message: "Record not found." });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-app.get('/api/jf/tab4-breakdown', (req, res) => {
-  try {
-    const records = getJfRecords();
-    const clearanceRecords = [];
-    const permitRecords = [];
-
-    records.forEach(r => {
-      const doc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || "").toUpperCase();
-      let days = null;
-
-      if (r.dateFiled && r.dateIssued) {
-        const d1 = new Date(r.dateFiled + 'T00:00:00');
-        const d2 = new Date(r.dateIssued + 'T00:00:00');
-        if (!isNaN(d1) && !isNaN(d2)) {
-          days = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+      if (!detectedUser) {
+        for (let key of keys) {
+          const sVal = sessionStorage.getItem(key);
+          const lVal = localStorage.getItem(key);
+          const val = sVal || lVal;
+          if (val) {
+            try {
+              const parsed = JSON.parse(val);
+              detectedUser = parsed.username || parsed.name || parsed.user || parsed.office || parsed.municipality || val;
+            } catch(e) {
+              detectedUser = val;
+            }
+            if (detectedUser && typeof detectedUser === 'string' && detectedUser.trim() !== '') break;
+          }
         }
       }
 
-      const item = {
-        month: r.reportingPeriod || r.month || r['REPORTING PERIOD'] || "JANUARY",
-        year: r.year || r['YEAR'] || "2026",
-        province: r.fieldOffice || r.province || r['FIELD OFFICE'] || "BATANGAS",
-        actionTaken: r.actionTaken || r['ACTION TAKEN'] || "APPROVED",
-        clearanceNo: r.documentNumber || r['PERMIT / CLEARANCE NO.'] || "",
-        documentNumber: r.documentNumber || r['PERMIT / CLEARANCE NO.'] || "",
-        days: days
+      if (!detectedUser && window.currentUser) detectedUser = window.currentUser;
+      if (!detectedUser && window.username) detectedUser = window.username;
+
+      // Default fallback if no user context is detected
+      let finalUsername = (detectedUser && typeof detectedUser === 'string' && detectedUser.trim() !== '') ? detectedUser.trim() : "DOLE4A";
+
+      // Enforce capital user display
+      finalUsername = finalUsername.toUpperCase();
+
+      const nameEl = document.getElementById('sidebarUserName');
+      const roleEl = document.getElementById('sidebarUserRole');
+      if (nameEl) nameEl.innerText = finalUsername;
+      if (roleEl) roleEl.innerText = finalUsername;
+
+      checkRestrictedTabsVisibility();
+    }
+
+    function promptChangeUsername() {
+      const current = document.getElementById('sidebarUserName')?.innerText || 'DOLE4A';
+      const input = prompt("Enter your username/office (e.g., DOLE4A, CALAMBA):", current);
+      if (input && input.trim() !== '') {
+        const clean = input.trim().toUpperCase();
+        localStorage.setItem('username', clean);
+        sessionStorage.setItem('username', clean);
+        initLoggedInUser();
+        checkRestrictedTabsVisibility();
+      }
+    }
+
+    // STRICT DOLE4A USER DETECTION (ONLY RETURNS TRUE IF USER IS DOLE4A / REGIONAL RO4A)
+    function isDole4aUser() {
+      const keys = ['username', 'userContext', 'currentUser', 'user', 'userRole', 'loggedUser', 'loginUser'];
+      let foundUserStrings = [];
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUser = urlParams.get('username') || urlParams.get('user') || urlParams.get('office');
+      if (urlUser) foundUserStrings.push(urlUser);
+
+      keys.forEach(k => {
+        const sVal = sessionStorage.getItem(k);
+        const lVal = localStorage.getItem(k);
+        if (sVal) foundUserStrings.push(sVal);
+        if (lVal) foundUserStrings.push(lVal);
+      });
+
+      const sidebarNameEl = document.getElementById('sidebarUserName');
+      if (sidebarNameEl && sidebarNameEl.innerText) {
+        foundUserStrings.push(sidebarNameEl.innerText);
+      }
+
+      for (let str of foundUserStrings) {
+        if (!str) continue;
+        let upper = "";
+        try {
+          const parsed = typeof str === 'string' && str.startsWith('{') ? JSON.parse(str) : str;
+          if (typeof parsed === 'object' && parsed !== null) {
+            upper = (parsed.username || parsed.name || parsed.office || parsed.role || "").toUpperCase();
+          } else {
+            upper = String(str).toUpperCase();
+          }
+        } catch(e) {
+          upper = String(str).toUpperCase();
+        }
+
+        if (upper.includes("DOLE4A") || upper.includes("DOLE 4A") || upper.includes("DOLE-4A") || upper.includes("DOLE_4A") || upper.includes("DOLE REGION IV-A") || upper.includes("ROIVA")) {
+          return true;
+        }
+      }
+
+      // Default: Return FALSE for all other users (e.g. CALAMBA, SANTAROSA, CAVITE, BATANGAS, QUEZON, RIZAL)
+      return false;
+    }
+
+    // CONTROL VISIBILITY OF TAB 4 (KFS SUMMARY) AND TAB 5 (BLE JF REPORT)
+    function checkRestrictedTabsVisibility() {
+      const isDole4a = isDole4aUser();
+      
+      const tab4Item = document.getElementById('tab4NavItem');
+      const tab5Item = document.getElementById('tab5NavItem');
+
+      if (tab4Item) tab4Item.style.display = isDole4a ? 'block' : 'none';
+      if (tab5Item) tab5Item.style.display = isDole4a ? 'block' : 'none';
+
+      // If non-DOLE4A user tries to access Tab 4 or Tab 5, switch them to Tab 1
+      if (!isDole4a) {
+        const activeTabBtn = document.querySelector('#appTabs .nav-link.active');
+        if (activeTabBtn && (activeTabBtn.id === 'tab-4' || activeTabBtn.id === 'tab-5')) {
+          activateTab('#tab-1');
+        }
+      }
+    }
+
+    function checkTab4Access(event) {
+      if (!isDole4aUser()) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        showScreenAlert("ACCESS RESTRICTED: KFS SUMMARY IS ONLY VISIBLE TO DOLE4A USER.", "danger");
+        activateTab('#tab-1');
+      }
+    }
+
+    function checkTab5Access(event) {
+      if (!isDole4aUser()) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        showScreenAlert("ACCESS RESTRICTED: BLE JF REPORT IS ONLY VISIBLE TO DOLE4A USER.", "danger");
+        activateTab('#tab-1');
+      }
+    }
+
+    function resetFormWithDate() {
+      setTimeout(() => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('dateOfEncoding').value = todayStr;
+        calculateCalculatedFields();
+      }, 100);
+    }
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('collapsed');
+      document.getElementById('main-content').classList.toggle('expanded');
+    }
+
+    function handleDashboardLogout() {
+      sessionStorage.clear();
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+
+    function goToPage(pageName) {
+      window.location.href = '/' + pageName.toLowerCase();
+    }
+
+    function activateTab(tabId) {
+      const triggerEl = document.querySelector(`button[data-bs-target="${tabId}"]`);
+      if (triggerEl) bootstrap.Tab.getOrCreateInstance(triggerEl).show();
+    }
+
+    // CENTERED SCREEN ALERT MESSAGE WITH 3-SECOND AUTO DISMISS
+    function showScreenAlert(message, type) {
+      const container = document.getElementById('screenAlertContainer');
+      document.getElementById('screenAlertMessage').innerText = message;
+      document.getElementById('screenAlertBox').className = `alert alert-${type} alert-dismissible fade show fw-bold text-uppercase shadow-lg text-center`;
+      container.style.display = 'block';
+
+      if (screenAlertTimeout) {
+        clearTimeout(screenAlertTimeout);
+      }
+      screenAlertTimeout = setTimeout(hideScreenAlert, 3000);
+    }
+
+    function hideScreenAlert() {
+      if (screenAlertTimeout) {
+        clearTimeout(screenAlertTimeout);
+        screenAlertTimeout = null;
+      }
+      document.getElementById('screenAlertContainer').style.display = 'none';
+    }
+
+    function convertToUppercase(el) {
+      el.value = el.value.toUpperCase();
+    }
+
+    function updateSponsorsAndNumber() {
+      const office = document.getElementById('fieldOffice').value;
+      const sponsorSelect = document.getElementById('sponsor');
+      sponsorSelect.innerHTML = '<option value="" selected disabled>-- SELECT SPONSOR / ORGANIZER --</option>';
+      
+      if (office && officeSponsors[office]) {
+        officeSponsors[office].forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.innerText = s;
+          sponsorSelect.appendChild(opt);
+        });
+      }
+      updateNumberFormat();
+    }
+
+    function updateNumberFormat() {
+      const docPermitEl = document.getElementById('docPermit');
+      const docClearanceEl = document.getElementById('docClearance');
+      const isPermit = docPermitEl ? docPermitEl.checked : false;
+      const isClearance = docClearanceEl ? docClearanceEl.checked : false;
+      const fieldOffice = (document.getElementById('fieldOffice') ? document.getElementById('fieldOffice').value : "").toUpperCase();
+      
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+
+      if (isPermit) {
+        document.getElementById('numPrefix').value = "ROIVA";
+        document.getElementById('numMiddle').value = `${yyyy}-${mm}`;
+        if (document.getElementById('extraGroupContainer')) {
+          document.getElementById('extraGroupContainer').style.display = 'none';
+        }
+      } else if (isClearance) {
+        let prefix = "PO#";
+        if (fieldOffice.includes("BATANGAS")) prefix = "BPO#";
+        else if (fieldOffice.includes("CAVITE")) prefix = "CPO#";
+        else if (fieldOffice.includes("LAGUNA")) prefix = "LPO#";
+        else if (fieldOffice.includes("QUEZON")) prefix = "QPO#";
+        else if (fieldOffice.includes("RIZAL")) prefix = "RPO#";
+        
+        document.getElementById('numPrefix').value = prefix;
+        document.getElementById('numMiddle').value = mm;
+        if (document.getElementById('numExtra')) {
+          document.getElementById('numExtra').value = String(yyyy).slice(-2);
+        }
+        if (document.getElementById('extraGroupContainer')) {
+          document.getElementById('extraGroupContainer').style.display = 'block';
+        }
+      }
+    }
+
+    function toggleDisapprovedReason() {
+      const isDisapproved = document.getElementById('actionDisapproved').checked;
+      document.getElementById('disapprovedReason').value = isDisapproved ? "" : "N/A";
+    }
+
+    // HELPER: READ FILE AS DATA URL / BASE64
+    function readFileAsDataURL(fileInput) {
+      return new Promise((resolve) => {
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+          resolve('');
+          return;
+        }
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          resolve(e.target.result);
+        };
+        reader.onerror = function() {
+          resolve(file.name);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // COMPUTED METRICS LOGIC (ENCODING FORM)
+    function calculateCalculatedFields() {
+      const dateFiledVal = document.getElementById('dateFiled').value;
+      const dateIssuedVal = document.getElementById('dateIssued').value;
+      const dateOfJobFairVal = document.getElementById('dateOfJobFair').value;
+      const dateOfEncodingVal = document.getElementById('dateOfEncoding').value;
+
+      if (dateFiledVal && dateIssuedVal) {
+        const startDate = new Date(dateFiledVal + 'T00:00:00');
+        const endDate = new Date(dateIssuedVal + 'T00:00:00');
+        
+        if (endDate >= startDate) {
+          let workingDays = 0;
+          let curDate = new Date(startDate.getTime());
+          
+          while (curDate <= endDate) {
+            const dayOfWeek = curDate.getDay();
+            const mmDd = String(curDate.getMonth() + 1).padStart(2, '0') + '-' + String(curDate.getDate()).padStart(2, '0');
+            const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+            const isHoliday = philippineHolidays.includes(mmDd);
+
+            if (!isWeekend && !isHoliday) {
+              workingDays++;
+            }
+            curDate.setDate(curDate.getDate() + 1);
+          }
+          document.getElementById('turnaroundTime').value = `${workingDays} DAY(S)`;
+        } else {
+          document.getElementById('turnaroundTime').value = `0 DAY(S)`;
+        }
+      } else {
+        document.getElementById('turnaroundTime').value = `0 DAY(S)`;
+      }
+
+      if (dateOfJobFairVal && dateFiledVal) {
+        const jfDate = new Date(dateOfJobFairVal + 'T00:00:00');
+        const filedDate = new Date(dateFiledVal + 'T00:00:00');
+        const diffDays = Math.round((jfDate - filedDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('daysFiledBeforeJF').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
+      } else {
+        document.getElementById('daysFiledBeforeJF').value = `0 DAY(S)`;
+      }
+
+      if (dateOfEncodingVal && dateFiledVal) {
+        const encDate = new Date(dateOfEncodingVal + 'T00:00:00');
+        const filedDate = new Date(dateFiledVal + 'T00:00:00');
+        const diffDays = Math.round((encDate - filedDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('daysReported').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
+      } else {
+        document.getElementById('daysReported').value = `0 DAY(S)`;
+      }
+    }
+
+    // API: Submit New Record (Tab 1)
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+      calculateCalculatedFields();
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'SUBMITTING...';
+
+      const isPermit = document.getElementById('docPermit').checked;
+      const prefix = document.getElementById('numPrefix').value;
+      const digits = document.getElementById('numDigit').value;
+      const middle = document.getElementById('numMiddle').value;
+      
+      let fullDocumentNo = isPermit ? `${prefix}-${middle}-${digits}` : `${prefix}-${middle}-${document.getElementById('numExtra').value}-${digits}`;
+
+      const dateEncVal = document.getElementById('dateOfEncoding').value;
+      const turnTimeVal = document.getElementById('turnaroundTime').value;
+      const daysBeforeVal = document.getElementById('daysFiledBeforeJF').value;
+      const daysRepVal = document.getElementById('daysReported').value;
+
+      const proofRecUrl = await readFileAsDataURL(document.getElementById('proofReceivedFile'));
+      const proofRelUrl = await readFileAsDataURL(document.getElementById('proofReleasedFile'));
+
+      const formData = {
+        reportingPeriod: document.getElementById('reportingPeriod').value,
+        fieldOffice: document.getElementById('fieldOffice').value,
+        sponsor: document.getElementById('sponsor').value,
+        contactNumber: document.getElementById('contactNumber').value,
+        dateOfJobFair: document.getElementById('dateOfJobFair').value,
+        dateFiled: document.getElementById('dateFiled').value,
+        dateIssued: document.getElementById('dateIssued').value,
+        dateOfEncoding: dateEncVal,
+        turnaroundTime: turnTimeVal,
+        daysFiledBeforeJF: daysBeforeVal,
+        daysReported: daysRepVal,
+        jobFairVenue: document.getElementById('jobFairVenue').value,
+        documentApplied: document.querySelector('input[name="documentApplied"]:checked') ? document.querySelector('input[name="documentApplied"]:checked').value : '',
+        actionTaken: document.querySelector('input[name="actionTaken"]:checked') ? document.querySelector('input[name="actionTaken"]:checked').value : '',
+        disapprovedReason: document.getElementById('disapprovedReason').value,
+        documentNumber: fullDocumentNo,
+        proofReceivedUrl: proofRecUrl,
+        proofReleasedUrl: proofRelUrl,
+
+        "DATE OF ENCODING": dateEncVal,
+        "TURNAROUND TIME": turnTimeVal,
+        "DAYS FILED BEFORE JF": daysBeforeVal,
+        "NO. DAYS FILED BEFORE JF": daysBeforeVal,
+        "DAYS REPORTED": daysRepVal,
+        "NO. DAYS REPORTED": daysRepVal,
+        "date_of_encoding": dateEncVal,
+        "turnaround_time": turnTimeVal,
+        "days_filed_before_jf": daysBeforeVal,
+        "days_reported": daysRepVal
       };
 
-      if (doc.includes("PERMIT")) {
-        permitRecords.push(item);
-      } else {
-        clearanceRecords.push(item);
+      // PERSISTENT LOCAL STORAGE SAVING FOR GITHUB PAGES & STANDALONE EXECUTION
+      let localSaved = [];
+      try {
+        localSaved = JSON.parse(localStorage.getItem('localEncodedJobFairRecords') || '[]');
+      } catch(e) {}
+      
+      // Ensure unique identifier
+      formData._rowIndex = Date.now();
+      formData.year = (formData.dateOfJobFair ? formData.dateOfJobFair.split('-')[0] : String(new Date().getFullYear()));
+      formData.province = formData.fieldOffice;
+
+      localSaved.unshift(formData);
+      localStorage.setItem('localEncodedJobFairRecords', JSON.stringify(localSaved));
+
+      try {
+        const response = await fetch('/api/jf/encode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        const data = await response.json();
+
+        if (data.status === 'success' || data.success) {
+          showScreenAlert(data.message || 'RECORD SUCCESSFULLY SAVED & SUBMITTED', 'success');
+        } else {
+          showScreenAlert('RECORD SAVED LOCALLY IN DATABASE', 'success');
+        }
+      } catch (err) {
+        showScreenAlert('RECORD SUCCESSFULLY ENCODED & SAVED IN LOCAL DATABASE!', 'success');
+      } finally {
+        document.getElementById('encodingForm').reset();
+        resetFormWithDate();
+        fetchAndRenderTab3Data();
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'SUBMIT RECORD';
       }
-    });
+    }
 
-    res.json({
-      success: true,
-      clearanceRecords,
-      permitRecords
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+    // HELPER: DEDUPLICATE APPROVED RECORDS ONLY
+    function getDeduplicatedApprovedRecords(records) {
+      const approved = (records || []).filter(r => {
+        const act = (r.actionTaken || r['ACTION TAKEN'] || '').toUpperCase();
+        return act === 'APPROVED';
+      });
 
-app.listen(PORT, () => {
-  console.log(`DOLE CALABARZON Express Server listening on port ${PORT}`);
-});
+      const seen = new Set();
+      const deduplicated = [];
+
+      approved.forEach(r => {
+        const docNo = (r.documentNumber || r['PERMIT / CLEARANCE NO.'] || r['PERMIT/CLEARANCE NO.'] || r['CLEARANCE NO.'] || '').trim().toUpperCase();
+        const docApplied = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || '').trim().toUpperCase();
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').trim().toUpperCase();
+        const dateJf = (r.dateOfJobFair || r['DATE OF JOB FAIR'] || r['JOB FAIR DATE'] || '').trim();
+        const sponsor = (r.sponsor || r['SPONSOR / ORGANIZER'] || r['SPONSOR'] || '').trim().toUpperCase();
+
+        let key = '';
+        if (docNo && docNo !== 'N/A') {
+          key = `${docApplied}::${docNo}`;
+        } else {
+          key = `${docApplied}::${province}::${dateJf}::${sponsor}`;
+        }
+
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduplicated.push(r);
+        }
+      });
+
+      return deduplicated;
+    }
+
+    // TAB 2: SUMMARY TABLE
+    function filterSummaryTable() {
+      renderSummaryTable(tab3DetailedRecords);
+    }
+
+    function resetSummaryFilters() {
+      document.getElementById('filterSummaryProvince').value = '';
+      document.getElementById('filterSummaryYear').value = String(new Date().getFullYear());
+      renderSummaryTable(tab3DetailedRecords);
+    }
+
+    function renderSummaryTable(records) {
+      const fProvince = (document.getElementById('filterSummaryProvince') ? document.getElementById('filterSummaryProvince').value : '').toUpperCase();
+      const fYear = (document.getElementById('filterSummaryYear') ? document.getElementById('filterSummaryYear').value : '').toUpperCase();
+
+      const cleanApprovedRecords = getDeduplicatedApprovedRecords(records);
+
+      const filteredRecords = cleanApprovedRecords.filter(r => {
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const year = (r.year || r['YEAR'] || '').toUpperCase();
+
+        if (fProvince && !province.includes(fProvince)) return false;
+        if (fYear && !year.includes(fYear)) return false;
+        return true;
+      });
+
+      const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+      const provinces = ["BATANGAS", "CAVITE", "LAGUNA", "QUEZON", "RIZAL"];
+
+      let matrix = {};
+      months.forEach(m => {
+        matrix[m] = {};
+        provinces.forEach(p => matrix[m][p] = { permit: 0, clearance: 0 });
+      });
+
+      filteredRecords.forEach(r => {
+        const rawM = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || r['MONTH'] || "").toUpperCase();
+        const rawP = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || "").toUpperCase();
+        const rawDoc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || "").toUpperCase();
+
+        const m = months.find(month => rawM.includes(month));
+        const p = provinces.find(prov => rawP.includes(prov));
+
+        if (m && p) {
+          if (rawDoc.includes("PERMIT") || rawDoc.includes("JFP")) {
+            matrix[m][p].permit++;
+          } else if (rawDoc.includes("CLEARANCE") || rawDoc.includes("JFC")) {
+            matrix[m][p].clearance++;
+          }
+        }
+      });
+
+      let tbody = document.getElementById('summaryTableBody');
+      tbody.innerHTML = '';
+
+      let colTotals = {};
+      provinces.forEach(p => colTotals[p] = { permit: 0, clearance: 0 });
+      let grandPermit = 0, grandClearance = 0;
+
+      months.forEach(m => {
+        let rowJfp = 0, rowJfc = 0;
+        let cells = '';
+        provinces.forEach(p => {
+          const permitCount = matrix[m][p].permit;
+          const clearanceCount = matrix[m][p].clearance;
+          rowJfp += permitCount;
+          rowJfc += clearanceCount;
+
+          colTotals[p].permit += permitCount;
+          colTotals[p].clearance += clearanceCount;
+
+          cells += `<td>${permitCount || '-'}</td><td>${clearanceCount || '-'}</td>`;
+        });
+
+        grandPermit += rowJfp;
+        grandClearance += rowJfc;
+
+        tbody.innerHTML += `<tr><td class="fw-bold text-start">${m}</td>${cells}<td class="fw-bold table-warning">${rowJfp || '-'}</td><td class="fw-bold table-info">${rowJfc || '-'}</td></tr>`;
+      });
+
+      let tfoot = document.getElementById('summaryTableFoot');
+      let footCells = '';
+      provinces.forEach(p => {
+        footCells += `<td>${colTotals[p].permit || 0}</td><td>${colTotals[p].clearance || 0}</td>`;
+      });
+      tfoot.innerHTML = `<tr class="table-dark text-white fw-bold"><td class="text-start">ANNUAL TOTAL</td>${footCells}<td class="bg-warning text-dark">${grandPermit}</td><td class="bg-info text-dark">${grandClearance}</td></tr>`;
+    }
+
+    // PARSE LIVE GOOGLE SHEET CSV INTO RECORD OBJECTS
+    function parseCsvToRecords(csvText) {
+      const lines = csvText.split(/\r?\n/);
+      if (lines.length < 2) return [];
+
+      function parseCsvLine(line) {
+        let result = [];
+        let cur = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          let char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(cur.replace(/^"|"$/g, '').trim());
+            cur = '';
+          } else {
+            cur += char;
+          }
+        }
+        result.push(cur.replace(/^"|"$/g, '').trim());
+        return result;
+      }
+
+      const headers = parseCsvLine(lines[0]).map(h => h.toUpperCase());
+      let records = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const row = parseCsvLine(lines[i]);
+        let record = { rowIndex: i };
+        headers.forEach((h, idx) => {
+          record[h] = row[idx] || '';
+        });
+
+        record.year = record['YEAR'] || '2026';
+        record.province = record['PROVINCE'] || record['FIELD OFFICE'] || '';
+        record.fieldOffice = record.province;
+        record.reportingPeriod = record['REPORTING PERIOD'] || record['MONTH'] || '';
+        record.sponsor = record['SPONSOR / ORGANIZER'] || record['SPONSOR/ORGANIZER'] || record['SPONSOR'] || '';
+        record.contactNumber = record['CONTACT NUMBER'] || record['CONTACT NO'] || '';
+        record.documentNumber = record['PERMIT / CLEARANCE NO.'] || record['PERMIT/CLEARANCE NO.'] || record['CLEARANCE NO.'] || '';
+        record.documentApplied = record['JOB FAIR DOCUMENT APPLIED'] || record['DOCUMENT APPLIED'] || record['DOCUMENT'] || '';
+        record.jobFairVenue = record['JOB FAIR VENUE'] || record['VENUE'] || '';
+        record.dateOfJobFair = record['DATE OF JOB FAIR'] || record['JOB FAIR DATE'] || '';
+        record.dateFiled = record['DATE FILED'] || '';
+        record.dateIssued = record['DATE ISSUED'] || '';
+        record.dateOfEncoding = record['DATE OF ENCODING'] || '';
+        record.turnaroundTime = record['TURNAROUND TIME'] || '';
+        record.daysFiledBeforeJF = record['DAYS FILED BEFORE JF'] || record['NO. DAYS FILED BEFORE JF'] || '';
+        record.daysReported = record['DAYS REPORTED'] || record['NO. DAYS REPORTED'] || '';
+        record.actionTaken = record['ACTION TAKEN'] || 'APPROVED';
+        record.disapprovedReason = record['REASON IF DISAPPROVED'] || 'N/A';
+        record.proofReceivedUrl = record['PROOF RECEIVED'] || record['PROOF_RECEIVED'] || '';
+        record.proofReleasedUrl = record['PROOF RELEASED'] || record['PROOF_RELEASED'] || '';
+
+        records.push(record);
+      }
+      return records;
+    }
+
+    async function fetchGoogleSheetRecords() {
+      try {
+        const res = await fetch(GOOGLE_SHEET_CSV_URL);
+        if (!res.ok) throw new Error('Google Sheet network response not OK');
+        const csvText = await res.text();
+        return parseCsvToRecords(csvText);
+      } catch(err) {
+        console.warn("Direct Google Sheet CSV fetch unaccessible, falling back to backend storage:", err);
+        return null;
+      }
+    }
+
+    // HELPER: SORT DATA LATEST TO EARLIEST
+    function sortRecordsLatestToEarliest(records) {
+      return [...records].sort((a, b) => {
+        function parseBestDate(r) {
+          const dJf = r.dateOfJobFair || r['DATE OF JOB FAIR'] || r['JOB FAIR DATE'];
+          const dFiled = r.dateFiled || r['DATE FILED'];
+          const dIssued = r.dateIssued || r['DATE ISSUED'];
+          const dEnc = r.dateOfEncoding || r['DATE OF ENCODING'];
+
+          const str = dJf || dFiled || dIssued || dEnc;
+          if (str) {
+            const t = Date.parse(str);
+            if (!isNaN(t)) return t;
+          }
+          return 0;
+        }
+
+        const tA = parseBestDate(a);
+        const tB = parseBestDate(b);
+        if (tB !== tA) {
+          return tB - tA;
+        }
+
+        const idxA = Number(a._rowIndex || a.rowIndex || 0);
+        const idxB = Number(b._rowIndex || b.rowIndex || 0);
+        return idxB - idxA;
+      });
+    }
+
+    // API: Fetch Records
+    async function fetchAndRenderTab3Data() {
+      try {
+        const tbody = document.getElementById('tab3DataTableBody');
+        tbody.innerHTML = `<tr><td colspan="20" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>FETCHING LIVE GOOGLE SHEET & DATABASE RECORDS...</td></tr>`;
+
+        let liveSheetRecords = await fetchGoogleSheetRecords();
+        let localRecords = [];
+
+        try {
+          const res = await fetch('/api/jf/records');
+          const data = await res.json();
+          localRecords = data.records || data || [];
+        } catch(e) {}
+
+        // Merge localEncodedJobFairRecords from localStorage
+        let localEncoded = [];
+        try {
+          localEncoded = JSON.parse(localStorage.getItem('localEncodedJobFairRecords') || '[]');
+        } catch(e) {}
+
+        if (liveSheetRecords && liveSheetRecords.length > 0) {
+          tab3DetailedRecords = [...liveSheetRecords];
+          localRecords.forEach(lr => {
+            const exists = tab3DetailedRecords.some(sr => 
+              (sr.documentNumber && sr.documentNumber === lr.documentNumber) ||
+              (sr.rowIndex == lr.rowIndex)
+            );
+            if (!exists) tab3DetailedRecords.push(lr);
+          });
+        } else {
+          tab3DetailedRecords = localRecords;
+        }
+
+        // Always prepend locally saved user-encoded records so they are never lost
+        localEncoded.forEach(le => {
+          const docNo = le.documentNumber || le['PERMIT / CLEARANCE NO.'];
+          const exists = tab3DetailedRecords.some(sr => 
+            docNo && docNo !== 'N/A' && (sr.documentNumber === docNo || sr['PERMIT / CLEARANCE NO.'] === docNo)
+          );
+          if (!exists) {
+            tab3DetailedRecords.unshift(le);
+          }
+        });
+
+        populateYearDropdowns(tab3DetailedRecords);
+        tab3DetailedRecords = sortRecordsLatestToEarliest(tab3DetailedRecords);
+
+        filterTab3Table();
+        renderSummaryTable(tab3DetailedRecords);
+        renderTab6Schedules();
+        refreshTab4Metrics();
+        renderTab5Dashboard();
+      } catch (err) {
+        console.error("Database fetch error:", err);
+      }
+    }
+
+    // TAB 3 FILTERING FUNCTION
+    function filterTab3Table() {
+      const fProvince = document.getElementById('filterProvince').value.toUpperCase();
+      const fMonth = document.getElementById('filterMonth').value.toUpperCase();
+      const fYear = document.getElementById('filterYear').value.toUpperCase();
+      const fDocument = document.getElementById('filterDocument').value.toUpperCase();
+      const fAction = document.getElementById('filterAction').value.toUpperCase();
+
+      const filtered = tab3DetailedRecords.filter(r => {
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const month = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || r['MONTH'] || '').toUpperCase();
+        const year = (r.year || r['YEAR'] || '').toUpperCase();
+        const doc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        const action = (r.actionTaken || r['ACTION TAKEN'] || '').toUpperCase();
+
+        if (fProvince && !province.includes(fProvince)) return false;
+        if (fMonth && !month.includes(fMonth)) return false;
+        if (fYear && !year.includes(fYear)) return false;
+        if (fDocument && !doc.includes(fDocument)) return false;
+        if (fAction && !action.includes(fAction)) return false;
+
+        return true;
+      });
+
+      renderTab3TableCustom(sortRecordsLatestToEarliest(filtered));
+    }
+
+    function resetTab3Filters() {
+      document.getElementById('filterProvince').value = '';
+      document.getElementById('filterMonth').value = '';
+      document.getElementById('filterYear').value = String(new Date().getFullYear());
+      document.getElementById('filterDocument').value = '';
+      document.getElementById('filterAction').value = '';
+      filterTab3Table();
+    }
+
+    function renderTab3Table() {
+      renderTab3TableCustom(sortRecordsLatestToEarliest(tab3DetailedRecords));
+    }
+
+    // RENDER TAB 3 TABLE
+    function renderTab3TableCustom(recordsList) {
+      const tbody = document.getElementById('tab3DataTableBody');
+      if (!recordsList || recordsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="20" class="text-center text-muted">NO MATCHING RECORDS FOUND.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = recordsList.map(r => {
+        const rId = r._rowIndex || r.rowIndex;
+        const year = r.year || r['YEAR'] || '2026';
+        const province = r.province || r.fieldOffice || r['FIELD OFFICE'] || '';
+        const repPeriod = r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '';
+        const sponsor = r.sponsor || r['SPONSOR / ORGANIZER'] || '';
+        const contact = r.contactNumber || r['CONTACT NUMBER'] || '';
+        const docNo = r.documentNumber || r['PERMIT / CLEARANCE NO.'] || '';
+        const docApplied = r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || '';
+        const venue = r.jobFairVenue || r['JOB FAIR VENUE'] || '';
+        const dateJf = r.dateOfJobFair || r['DATE OF JOB FAIR'] || '';
+        const dateFiled = r.dateFiled || r['DATE FILED'] || '';
+        const dateIssued = r.dateIssued || r['DATE ISSUED'] || '';
+        const dateEnc = r.dateOfEncoding || r['DATE OF ENCODING'] || r['Date of Encoding'] || r['date_of_encoding'] || '';
+        const turnaround = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
+        const daysBefore = r.daysFiledBeforeJF || r['DAYS FILED BEFORE JF'] || r['NO. DAYS FILED BEFORE JF'] || r['Days Filed Before JF'] || r['days_filed_before_jf'] || '';
+        const daysRep = r.daysReported || r['DAYS REPORTED'] || r['NO. DAYS REPORTED'] || r['Days Reported'] || r['days_reported'] || '';
+        const actionTaken = r.actionTaken || r['ACTION TAKEN'] || '';
+        const reasonDisapproved = r.disapprovedReason || r['REASON IF DISAPPROVED'] || 'N/A';
+        const proofRec = r.proofReceivedUrl || r['PROOF RECEIVED'] || '';
+        const proofRel = r.proofReleasedUrl || r['PROOF RELEASED'] || '';
+
+        const proofRecCell = proofRec ? `<a href="${proofRec}" target="_blank" class="badge bg-primary text-decoration-none">VIEW PROOF</a>` : '<span class="text-muted">N/A</span>';
+        const proofRelCell = proofRel ? `<a href="${proofRel}" target="_blank" class="badge bg-info text-dark text-decoration-none">VIEW PROOF</a>` : '<span class="text-muted">N/A</span>';
+
+        return `
+        <tr>
+          <td>
+            <button class="btn btn-warning btn-sm py-0 me-1" onclick="editRecord(${rId})">EDIT</button>
+            <button class="btn btn-danger btn-sm py-0" onclick="triggerDeleteModal(${rId})">DEL</button>
+          </td>
+          <td class="fw-bold">${year}</td>
+          <td>${province}</td>
+          <td>${repPeriod}</td>
+          <td class="text-start">${sponsor}</td>
+          <td>${contact}</td>
+          <td><strong>${docNo}</strong></td>
+          <td>${docApplied}</td>
+          <td class="text-start">${venue}</td>
+          <td>${dateJf}</td>
+          <td>${dateFiled}</td>
+          <td>${dateIssued}</td>
+          <td>${dateEnc}</td>
+          <td class="fw-bold text-primary">${turnaround}</td>
+          <td class="fw-bold text-success">${daysBefore}</td>
+          <td class="fw-bold text-info">${daysRep}</td>
+          <td><span class="badge ${actionTaken === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${actionTaken}</span></td>
+          <td>${reasonDisapproved}</td>
+          <td>${proofRecCell}</td>
+          <td>${proofRelCell}</td>
+        </tr>
+        `;
+      }).join('');
+    }
+
+    // CENTERED DELETE CONFIRMATION MODAL HANDLER
+    function triggerDeleteModal(rowIndex) {
+      pendingDeleteRowIndex = rowIndex;
+      const modalEl = document.getElementById('deleteConfirmModal');
+      const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      bsModal.show();
+    }
+
+    async function confirmDeleteRecord() {
+      if (!pendingDeleteRowIndex) return;
+      const modalEl = document.getElementById('deleteConfirmModal');
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+
+      try {
+        const res = await fetch('/api/jf/delete-record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rowIndex: pendingDeleteRowIndex })
+        });
+        const data = await res.json();
+        if (data.status === 'success' || data.success) {
+          showScreenAlert(data.message || 'RECORD DELETED SUCCESSFULLY', 'success');
+          fetchAndRenderTab3Data();
+        } else {
+          showScreenAlert(data.message || 'DELETE FAILED', 'danger');
+        }
+      } catch (err) {
+        showScreenAlert("Delete failed", "danger");
+      } finally {
+        pendingDeleteRowIndex = null;
+      }
+    }
+
+    // LOCK / UNLOCK PERMIT & CLEARANCE NO.
+    function lockDocumentNumberField() {
+      const docInput = document.getElementById('editDocumentNumber');
+      const lockBtn = document.getElementById('unlockDocNumBtn');
+      const lockStatus = document.getElementById('docNumLockStatus');
+      if (docInput && lockBtn && lockStatus) {
+        docInput.setAttribute('readonly', 'readonly');
+        docInput.classList.add('bg-light');
+        lockBtn.className = "btn btn-outline-danger";
+        lockBtn.innerHTML = '<i class="bi bi-lock-fill"></i> UNLOCK';
+        lockStatus.className = "text-muted";
+        lockStatus.innerHTML = '<i class="bi bi-shield-lock me-1"></i>LOCKED (REQUIRES AUTHORIZATION TO CHANGE)';
+      }
+    }
+
+    function unlockDocumentNumber() {
+      const docInput = document.getElementById('editDocumentNumber');
+
+      if (docInput.hasAttribute('readonly')) {
+        document.getElementById('unlockPasswordField').value = '';
+        document.getElementById('passwordModalError').style.display = 'none';
+        
+        const pwdModalEl = document.getElementById('passwordModal');
+        const bsPwdModal = bootstrap.Modal.getOrCreateInstance(pwdModalEl);
+        bsPwdModal.show();
+      } else {
+        lockDocumentNumberField();
+        showScreenAlert("PERMIT/CLEARANCE NO. FIELD LOCKED.", "warning");
+      }
+    }
+
+    function verifyUnlockPassword() {
+      const pwd = document.getElementById('unlockPasswordField').value;
+      const docInput = document.getElementById('editDocumentNumber');
+      const lockBtn = document.getElementById('unlockDocNumBtn');
+      const lockStatus = document.getElementById('docNumLockStatus');
+      const errorDiv = document.getElementById('passwordModalError');
+
+      if (pwd === "dole4a@2026") {
+        docInput.removeAttribute('readonly');
+        docInput.classList.remove('bg-light');
+        docInput.focus();
+        lockBtn.className = "btn btn-success";
+        lockBtn.innerHTML = '<i class="bi bi-unlock-fill"></i> UNLOCKED';
+        lockStatus.className = "text-success fw-bold";
+        lockStatus.innerHTML = '<i class="bi bi-shield-check me-1"></i>UNLOCKED FOR EDITING';
+
+        const pwdModalEl = document.getElementById('passwordModal');
+        const bsPwdModal = bootstrap.Modal.getInstance(pwdModalEl);
+        if (bsPwdModal) bsPwdModal.hide();
+
+        showScreenAlert("PERMIT/CLEARANCE NO. FIELD UNLOCKED FOR EDITING.", "success");
+      } else {
+        errorDiv.innerText = "INCORRECT PASSWORD! AUTHORIZATION DENIED.";
+        errorDiv.style.display = "block";
+        showScreenAlert("INCORRECT PASSWORD! AUTHORIZATION DENIED.", "danger");
+      }
+    }
+
+    // EDIT RECORD HANDLER
+    function editRecord(rowIndex) {
+      const record = tab3DetailedRecords.find(r => (r._rowIndex || r.rowIndex) == rowIndex);
+      if (!record) {
+        showScreenAlert('RECORD NOT FOUND FOR EDITING.', 'danger');
+        return;
+      }
+
+      lockDocumentNumberField();
+
+      document.getElementById('editRowIndex').value = record._rowIndex || record.rowIndex;
+      document.getElementById('editReportingPeriod').value = record.reportingPeriod || record.month || record['REPORTING PERIOD'] || '';
+      document.getElementById('editFieldOffice').value = record.fieldOffice || record.province || record['FIELD OFFICE'] || '';
+      document.getElementById('editSponsor').value = record.sponsor || record['SPONSOR / ORGANIZER'] || '';
+      document.getElementById('editContactNumber').value = record.contactNumber || record['CONTACT NUMBER'] || '';
+      document.getElementById('editDocumentNumber').value = record.documentNumber || record['PERMIT / CLEARANCE NO.'] || '';
+      document.getElementById('editJobFairVenue').value = record.jobFairVenue || record['JOB FAIR VENUE'] || '';
+      document.getElementById('editDateOfJobFair').value = record.dateOfJobFair || record['DATE OF JOB FAIR'] || '';
+      document.getElementById('editDateFiled').value = record.dateFiled || record['DATE FILED'] || '';
+      document.getElementById('editDateIssued').value = record.dateIssued || record['DATE ISSUED'] || '';
+      document.getElementById('editDateOfEncoding').value = record.dateOfEncoding || record['DATE OF ENCODING'] || new Date().toISOString().split('T')[0];
+      
+      const action = record.actionTaken || record['ACTION TAKEN'] || 'APPROVED';
+      document.getElementById('editActionTaken').value = action;
+      document.getElementById('editDisapprovedReason').value = record.disapprovedReason || record['REASON IF DISAPPROVED'] || (action === 'APPROVED' ? 'N/A' : '');
+
+      calculateEditCalculatedFields();
+
+      const modalEl = document.getElementById('editModal');
+      const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      bsModal.show();
+    }
+
+    function toggleEditDisapprovedReason() {
+      const action = document.getElementById('editActionTaken').value;
+      if (action === 'APPROVED') {
+        document.getElementById('editDisapprovedReason').value = 'N/A';
+      } else if (document.getElementById('editDisapprovedReason').value === 'N/A') {
+        document.getElementById('editDisapprovedReason').value = '';
+      }
+    }
+
+    function calculateEditCalculatedFields() {
+      const dateFiledVal = document.getElementById('editDateFiled').value;
+      const dateIssuedVal = document.getElementById('editDateIssued').value;
+      const dateOfJobFairVal = document.getElementById('editDateOfJobFair').value;
+      const dateOfEncodingVal = document.getElementById('editDateOfEncoding').value;
+
+      if (dateFiledVal && dateIssuedVal) {
+        const startDate = new Date(dateFiledVal + 'T00:00:00');
+        const endDate = new Date(dateIssuedVal + 'T00:00:00');
+        
+        if (endDate >= startDate) {
+          let workingDays = 0;
+          let curDate = new Date(startDate.getTime());
+          
+          while (curDate <= endDate) {
+            const dayOfWeek = curDate.getDay();
+            const mmDd = String(curDate.getMonth() + 1).padStart(2, '0') + '-' + String(curDate.getDate()).padStart(2, '0');
+            const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+            const isHoliday = philippineHolidays.includes(mmDd);
+
+            if (!isWeekend && !isHoliday) {
+              workingDays++;
+            }
+            curDate.setDate(curDate.getDate() + 1);
+          }
+          document.getElementById('editTurnaroundTime').value = `${workingDays} DAY(S)`;
+        } else {
+          document.getElementById('editTurnaroundTime').value = `0 DAY(S)`;
+        }
+      } else {
+        document.getElementById('editTurnaroundTime').value = `0 DAY(S)`;
+      }
+
+      if (dateOfJobFairVal && dateFiledVal) {
+        const jfDate = new Date(dateOfJobFairVal + 'T00:00:00');
+        const filedDate = new Date(dateFiledVal + 'T00:00:00');
+        const diffDays = Math.round((jfDate - filedDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('editDaysFiledBeforeJF').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
+      } else {
+        document.getElementById('editDaysFiledBeforeJF').value = `0 DAY(S)`;
+      }
+
+      if (dateOfEncodingVal && dateFiledVal) {
+        const encDate = new Date(dateOfEncodingVal + 'T00:00:00');
+        const filedDate = new Date(dateFiledVal + 'T00:00:00');
+        const diffDays = Math.round((encDate - filedDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('editDaysReported').value = `${diffDays >= 0 ? diffDays : 0} DAY(S)`;
+      } else {
+        document.getElementById('editDaysReported').value = `0 DAY(S)`;
+      }
+    }
+
+    async function handleEditSubmit(event) {
+      event.preventDefault();
+      calculateEditCalculatedFields();
+
+      const saveBtn = document.getElementById('editSaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerText = 'SAVING...';
+
+      const rowIndex = document.getElementById('editRowIndex').value;
+      const payload = {
+        rowIndex: rowIndex,
+        reportingPeriod: document.getElementById('editReportingPeriod').value,
+        fieldOffice: document.getElementById('editFieldOffice').value,
+        sponsor: document.getElementById('editSponsor').value,
+        contactNumber: document.getElementById('editContactNumber').value,
+        documentNumber: document.getElementById('editDocumentNumber').value,
+        jobFairVenue: document.getElementById('editJobFairVenue').value,
+        dateOfJobFair: document.getElementById('editDateOfJobFair').value,
+        dateFiled: document.getElementById('editDateFiled').value,
+        dateReceived: document.getElementById('editDateFiled').value,
+        dateIssued: document.getElementById('editDateIssued').value,
+        dateOfEncoding: document.getElementById('editDateOfEncoding').value,
+        actionTaken: document.getElementById('editActionTaken').value,
+        disapprovedReason: document.getElementById('editDisapprovedReason').value,
+        turnaroundTime: document.getElementById('editTurnaroundTime').value,
+        daysFiledBeforeJF: document.getElementById('editDaysFiledBeforeJF').value,
+        daysReported: document.getElementById('editDaysReported').value
+      };
+
+      try {
+        const response = await fetch('/api/jf/update-record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (data.status === 'success' || data.success) {
+          showScreenAlert(data.message || 'RECORD UPDATED SUCCESSFULLY', 'success');
+          const modalEl = document.getElementById('editModal');
+          const bsModal = bootstrap.Modal.getInstance(modalEl);
+          if (bsModal) bsModal.hide();
+          fetchAndRenderTab3Data();
+        } else {
+          showScreenAlert(data.message || 'UPDATE FAILED', 'danger');
+        }
+      } catch (err) {
+        showScreenAlert('Error connecting to server for update.', 'danger');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = 'SAVE CHANGES';
+      }
+    }
+
+    function downloadTab3Excel() {
+      const wb = XLSX.utils.table_to_book(document.getElementById("tab3TableElement"), { sheet: "JF DATABASE" });
+      XLSX.writeFile(wb, "JF_Database_Report.xlsx");
+    }
+
+    function downloadBleReportExcel() {
+      const wb = XLSX.utils.table_to_book(document.getElementById("tab5DetailTable"), { sheet: "BLE JF REPORT" });
+      XLSX.writeFile(wb, "BLE_Job_Fair_Report.xlsx");
+    }
+
+    function triggerBleSearch() {
+      activateTab('#tab-3');
+      showScreenAlert("NAVIGATED TO JF DATABASE SEARCH & FILTERS.", "info");
+    }
+
+    // PRINT ONLY THE BLE JF REPORT AREA (MATCHING IMAGE 2)
+    function printBleReportOnly() {
+      window.print();
+    }
+
+    // OPEN ENDORSEMENT MEMORANDUM MODAL (MATCHING IMAGE 1)
+    function openEndorsementModal() {
+      updateEndorsementMemoContent();
+      const modalEl = document.getElementById('endorsementModal');
+      const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      bsModal.show();
+    }
+
+    // UPDATE ENDORSEMENT MEMO CONTENT BASED ON SELECTED BLE FILTERS
+    function updateEndorsementMemoContent() {
+      const fMonth = (document.getElementById('filterBleMonth') ? document.getElementById('filterBleMonth').value : '').toUpperCase() || 'SEPTEMBER';
+      const fYear = (document.getElementById('filterBleYear') ? document.getElementById('filterBleYear').value : '').toUpperCase() || String(new Date().getFullYear());
+
+      document.getElementById('memoSubjectText').innerText = `REPORT ON ISSUANCE OF JOB FAIR PERMIT/CLEARANCE FOR THE MONTH OF ${fMonth} ${fYear}`;
+      document.getElementById('memoBodyIntro').innerText = `This is to formally endorse this Office's report on Issuance of Job Fair Permit/Clearance for the month of ${fMonth} ${fYear}, with breakdown as follows:`;
+      
+      const now = new Date();
+      const formattedDate = `${now.getDate()} ${now.toLocaleString('default', { month: 'long' })} ${now.getFullYear()}`;
+      document.getElementById('memoDateText').innerText = formattedDate;
+
+      // Calculate dynamic memo breakdown table per province
+      const provinces = ["Batangas", "Cavite", "Laguna", "Quezon", "Rizal"];
+      let summaryCounts = {};
+      provinces.forEach(p => summaryCounts[p.toUpperCase()] = { permit: 0, clearance: 0 });
+
+      const cleanApproved = getDeduplicatedApprovedRecords(tab3DetailedRecords || []);
+      cleanApproved.forEach(r => {
+        const rawM = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '').toUpperCase();
+        const rawY = (r.year || r['YEAR'] || '').toUpperCase();
+        
+        if (fMonth && !rawM.includes(fMonth)) return;
+        if (fYear && !rawY.includes(fYear)) return;
+
+        const rawP = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const rawDoc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        const pUpper = provinces.map(x => x.toUpperCase()).find(prov => rawP.includes(prov));
+
+        if (pUpper) {
+          if (rawDoc.includes('PERMIT') || rawDoc.includes('JFP')) {
+            summaryCounts[pUpper].permit++;
+          } else if (rawDoc.includes('CLEARANCE') || rawDoc.includes('JFC')) {
+            summaryCounts[pUpper].clearance++;
+          }
+        }
+      });
+
+      let totalPermits = 0;
+      let totalClearances = 0;
+
+      const memoBody = document.getElementById('memoBreakdownBody');
+      memoBody.innerHTML = provinces.map(p => {
+        const pUpper = p.toUpperCase();
+        const pCount = summaryCounts[pUpper].permit;
+        const cCount = summaryCounts[pUpper].clearance;
+        totalPermits += pCount;
+        totalClearances += cCount;
+
+        return `
+          <tr>
+            <td class="fw-bold text-start ps-3">${p}</td>
+            <td>${pCount}</td>
+            <td>${cCount}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('memoBreakdownFoot').innerHTML = `
+        <tr>
+          <td class="fw-bold text-start ps-3">TOTAL</td>
+          <td class="fw-bold">${totalPermits}</td>
+          <td class="fw-bold text-primary">${totalClearances}</td>
+        </tr>
+      `;
+    }
+
+    // PRINT OFFICIAL ENDORSEMENT MEMORANDUM (MATCHING IMAGE 1)
+    function printEndorsementMemo() {
+      const memoContent = document.getElementById('endorsementMemoPrintArea').innerHTML;
+      const printWindow = window.open('', '_blank', 'width=850,height=1100');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>OFFICIAL MEMORANDUM ENDORSEMENT</title>
+          <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+          <style>
+            body { font-family: 'Times New Roman', serif; padding: 40px; color: #000; background: #fff; }
+            .table-bordered th, .table-bordered td { border: 1px solid #000 !important; }
+            @media print {
+              @page { size: portrait; margin: 20mm; }
+            }
+          </style>
+        </head>
+        <body>
+          ${memoContent}
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+
+    function renderTab6Schedules() {
+      const tbody = document.getElementById('tab6DataTableBody');
+      if (!tab3DetailedRecords.length) return;
+      tbody.innerHTML = tab3DetailedRecords.map(r => `
+        <tr>
+          <td class="fw-bold text-primary">${r.dateOfJobFair || r['DATE OF JOB FAIR'] || 'N/A'}</td>
+          <td class="text-start fw-bold">${r.sponsor || r['SPONSOR / ORGANIZER'] || ''}</td>
+          <td>${r.contactNumber || r['CONTACT NUMBER'] || 'N/A'}</td>
+          <td class="text-start">${r.jobFairVenue || r['JOB FAIR VENUE'] || ''}</td>
+          <td>
+            <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(r.sponsor || r['SPONSOR / ORGANIZER'])}&location=${encodeURIComponent(r.jobFairVenue || r['JOB FAIR VENUE'])}" target="_blank" class="btn btn-outline-primary btn-sm py-0">
+              + CALENDAR
+            </a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // KFS TAB ACCESS CHECK
+    function checkTab4Access(event) {
+      if (!isDole4aUser()) {
+        if (event) event.preventDefault();
+        showScreenAlert("ACCESS DENIED: KFS SUMMARY IS VISIBLE ONLY TO DOLE4A USER.", "danger");
+        return false;
+      }
+      refreshTab4Metrics();
+    }
+
+    function checkTab5Access(event) {
+      renderTab5Dashboard();
+    }
+
+    function getTurnaroundDays(r) {
+      const dFiled = r.dateFiled || r['DATE FILED'];
+      const dIssued = r.dateIssued || r['DATE ISSUED'];
+
+      if (dFiled && dIssued) {
+        const sDate = new Date(dFiled + 'T00:00:00');
+        const eDate = new Date(dIssued + 'T00:00:00');
+        if (!isNaN(sDate) && !isNaN(eDate) && eDate >= sDate) {
+          let workingDays = 0;
+          let cur = new Date(sDate.getTime());
+          while (cur <= eDate) {
+            const dow = cur.getDay();
+            const mmDd = String(cur.getMonth() + 1).padStart(2, '0') + '-' + String(cur.getDate()).padStart(2, '0');
+            const isWeekend = (dow === 0 || dow === 6);
+            const isHoliday = philippineHolidays.includes(mmDd);
+            if (!isWeekend && !isHoliday) workingDays++;
+            cur.setDate(cur.getDate() + 1);
+          }
+          return workingDays;
+        }
+      }
+
+      const raw = r.turnaroundTime || r['TURNAROUND TIME'] || r['Turnaround Time'] || r['turnaround_time'] || '';
+      if (typeof raw === 'number') return raw;
+      if (typeof raw === 'string') {
+        const matches = raw.match(/\d+/);
+        if (matches) return parseInt(matches[0], 10);
+      }
+      return 0;
+    }
+
+    function resetKfsFilters() {
+      document.getElementById('filterKfsProvince').value = '';
+      document.getElementById('filterKfsYear').value = String(new Date().getFullYear());
+      refreshTab4Metrics();
+    }
+
+    function resetBleFilters() {
+      document.getElementById('filterBleMonth').value = '';
+      document.getElementById('filterBleYear').value = String(new Date().getFullYear());
+      renderTab5Dashboard();
+    }
+
+    // TAB 4: KFS SUMMARY METRICS
+    function refreshTab4Metrics() {
+      const fProvince = (document.getElementById('filterKfsProvince') ? document.getElementById('filterKfsProvince').value : '').toUpperCase();
+      const fYear = (document.getElementById('filterKfsYear') ? document.getElementById('filterKfsYear').value : '').toUpperCase();
+
+      const approvedDeduplicated = getDeduplicatedApprovedRecords(tab3DetailedRecords);
+
+      const filteredRecords = approvedDeduplicated.filter(r => {
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const year = (r.year || r['YEAR'] || '').toUpperCase();
+
+        if (fProvince && !province.includes(fProvince)) return false;
+        if (fYear && !year.includes(fYear)) return false;
+        return true;
+      });
+
+      const clearanceRecords = filteredRecords.filter(r => {
+        const docApplied = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        return docApplied.includes('CLEARANCE') || docApplied.includes('JFC');
+      });
+
+      const permitRecords = filteredRecords.filter(r => {
+        const docApplied = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        return docApplied.includes('PERMIT') || docApplied.includes('JFP');
+      });
+
+      renderTurnaroundTimelineTable(clearanceRecords, 'clearanceTimelineBody', 'clearanceTimelineFoot');
+      renderTurnaroundTimelineTable(permitRecords, 'permitTimelineBody', 'permitTimelineFoot');
+
+      showScreenAlert("KFS SUMMARY METRICS REFRESHED.", "success");
+    }
+
+    function renderTurnaroundTimelineTable(records, tbodyId, tfootId) {
+      const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+      
+      let monthlyData = {};
+      months.forEach(m => {
+        monthlyData[m] = {
+          lessThan1: 0, d1: 0, d2: 0, d3: 0,
+          d4: 0, d5: 0, d6: 0, d7: 0,
+          lessThan15: 0,
+          d15: 0, d16: 0, d17: 0, d18: 0, d19: 0, d20Plus: 0,
+          beyondPTDays: 0
+        };
+      });
+
+      records.forEach(r => {
+        const monthStr = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '').toUpperCase();
+        const matchedMonth = months.find(m => monthStr.includes(m));
+        
+        if (matchedMonth) {
+          const days = getTurnaroundDays(r);
+          const target = monthlyData[matchedMonth];
+
+          if (days < 1) target.lessThan1++;
+          else if (days === 1) target.d1++;
+          else if (days === 2) target.d2++;
+          else if (days === 3) target.d3++;
+          else if (days === 4) target.d4++;
+          else if (days === 5) target.d5++;
+          else if (days === 6) target.d6++;
+          else if (days === 7) target.d7++;
+          else if (days === 15) target.d15++;
+          else if (days === 16) target.d16++;
+          else if (days === 17) target.d17++;
+          else if (days === 18) target.d18++;
+          else if (days === 19) target.d19++;
+          else if (days >= 20) target.d20Plus++;
+
+          if (days < 15) {
+            target.lessThan15++;
+          }
+
+          if (days > 3) {
+            target.beyondPTDays += (days - 3);
+          }
+        }
+      });
+
+      let tbody = document.getElementById(tbodyId);
+      tbody.innerHTML = '';
+
+      let totals = {
+        lessThan1: 0, d1: 0, d2: 0, d3: 0, lessThan4: 0,
+        d4: 0, d5: 0, d6: 0, d7: 0, lessThan15: 0,
+        d15: 0, d16: 0, d17: 0, d18: 0, d19: 0, d20Plus: 0,
+        totalWithinPT: 0, totalBeyondPT: 0, beyondPTDays: 0
+      };
+
+      months.forEach(m => {
+        const d = monthlyData[m];
+        const lessThan4 = d.lessThan1 + d.d1 + d.d2 + d.d3;
+        const totalWithinPT = lessThan4;
+        const totalBeyondPT = d.d4 + d.d5 + d.d6 + d.d7 + d.d15 + d.d16 + d.d17 + d.d18 + d.d19 + d.d20Plus;
+
+        totals.lessThan1 += d.lessThan1;
+        totals.d1 += d.d1;
+        totals.d2 += d.d2;
+        totals.d3 += d.d3;
+        totals.lessThan4 += lessThan4;
+        totals.d4 += d.d4;
+        totals.d5 += d.d5;
+        totals.d6 += d.d6;
+        totals.d7 += d.d7;
+        totals.lessThan15 += d.lessThan15;
+        totals.d15 += d.d15;
+        totals.d16 += d.d16;
+        totals.d17 += d.d17;
+        totals.d18 += d.d18;
+        totals.d19 += d.d19;
+        totals.d20Plus += d.d20Plus;
+        totals.totalWithinPT += totalWithinPT;
+        totals.totalBeyondPT += totalBeyondPT;
+        totals.beyondPTDays += d.beyondPTDays;
+
+        tbody.innerHTML += `
+          <tr>
+            <td class="fw-bold text-start">${m}</td>
+            <td>${d.lessThan1 || '-'}</td>
+            <td>${d.d1 || '-'}</td>
+            <td>${d.d2 || '-'}</td>
+            <td>${d.d3 || '-'}</td>
+            <td class="fw-bold bg-light">${lessThan4 || '-'}</td>
+            <td>${d.d4 || '-'}</td>
+            <td>${d.d5 || '-'}</td>
+            <td>${d.d6 || '-'}</td>
+            <td>${d.d7 || '-'}</td>
+            <td class="fw-bold bg-light">${d.lessThan15 || '-'}</td>
+            <td>${d.d15 || '-'}</td>
+            <td>${d.d16 || '-'}</td>
+            <td>${d.d17 || '-'}</td>
+            <td>${d.d18 || '-'}</td>
+            <td>${d.d19 || '-'}</td>
+            <td>${d.d20Plus || '-'}</td>
+            <td class="fw-bold text-success">${totalWithinPT || '-'}</td>
+            <td class="fw-bold text-danger">${totalBeyondPT || '-'}</td>
+            <td class="fw-bold text-warning">${d.beyondPTDays || '-'}</td>
+          </tr>
+        `;
+      });
+
+      let tfoot = document.getElementById(tfootId);
+      tfoot.innerHTML = `
+        <tr class="table-dark text-white fw-bold">
+          <td>ANNUAL TOTAL</td>
+          <td>${totals.lessThan1}</td>
+          <td>${totals.d1}</td>
+          <td>${totals.d2}</td>
+          <td>${totals.d3}</td>
+          <td class="bg-success text-white">${totals.lessThan4}</td>
+          <td>${totals.d4}</td>
+          <td>${totals.d5}</td>
+          <td>${totals.d6}</td>
+          <td>${totals.d7}</td>
+          <td>${totals.lessThan15}</td>
+          <td>${totals.d15}</td>
+          <td>${totals.d16}</td>
+          <td>${totals.d17}</td>
+          <td>${totals.d18}</td>
+          <td>${totals.d19}</td>
+          <td>${totals.d20Plus}</td>
+          <td class="bg-success text-white">${totals.totalWithinPT}</td>
+          <td class="bg-danger text-white">${totals.totalBeyondPT}</td>
+          <td class="bg-warning text-dark">${totals.beyondPTDays}</td>
+        </tr>
+      `;
+    }
+
+    // TAB 5: RENDER BLE DASHBOARD WITH MONTH & YEAR FILTERS (MATCHING IMAGE 1 & IMAGE 2)
+    function renderTab5Dashboard() {
+      const fMonth = (document.getElementById('filterBleMonth') ? document.getElementById('filterBleMonth').value : '').toUpperCase();
+      const fYear = (document.getElementById('filterBleYear') ? document.getElementById('filterBleYear').value : '').toUpperCase() || String(new Date().getFullYear());
+
+      const monthBanner = document.getElementById('bleReportMonthBanner');
+      if (monthBanner) {
+        const monthTitle = fMonth ? fMonth : 'ALL MONTHS';
+        monthBanner.innerText = `JOB FAIR REPORT FOR THE MONTH OF ${monthTitle} ${fYear}`;
+      }
+
+      // Filter raw records by month & year
+      const records = (tab3DetailedRecords || []).filter(r => {
+        const rawM = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || '').toUpperCase();
+        const rawY = (r.year || r['YEAR'] || '').toUpperCase();
+
+        if (fMonth && !rawM.includes(fMonth)) return false;
+        if (fYear && !rawY.includes(fYear)) return false;
+        return true;
+      });
+
+      // 1. Populate Main Details Table
+      const tbody = document.getElementById('tab5DetailBody');
+      if (!records.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">NO MATCHING RECORDS FOUND FOR ${fMonth || 'ALL MONTHS'} ${fYear}.</td></tr>`;
+      } else {
+        tbody.innerHTML = records.map(r => {
+          const province = r.province || r.fieldOffice || r['FIELD OFFICE'] || '';
+          const repPeriod = r.reportingPeriod || r.month || r['REPORTING PERIOD'] || '';
+          const jfDate = r.dateOfJobFair || r['DATE OF JOB FAIR'] || 'N/A';
+          const venue = r.jobFairVenue || r['JOB FAIR VENUE'] || 'N/A';
+          const docNo = r.documentNumber || r['PERMIT / CLEARANCE NO.'] || 'N/A';
+          const docApplied = r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || '';
+          const action = r.actionTaken || r['ACTION TAKEN'] || 'APPROVED';
+
+          return `
+            <tr>
+              <td class="fw-bold">${province}</td>
+              <td>${repPeriod}</td>
+              <td>${jfDate}</td>
+              <td>${venue}</td>
+              <td class="fw-bold">${docNo}</td>
+              <td>${docApplied}</td>
+              <td><span class="badge ${action === 'APPROVED' ? 'bg-success' : 'bg-danger'}">${action}</span></td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // 2. Populate Side Summary Table (Matching Image 1 & Image 2)
+      const summaryBody = document.getElementById('bleSummaryTableBody');
+      const summaryFoot = document.getElementById('bleSummaryTableFoot');
+
+      const provinces = ["BATANGAS", "CAVITE", "LAGUNA", "QUEZON", "RIZAL"];
+      let summaryCounts = {};
+      provinces.forEach(p => summaryCounts[p] = { permit: 0, clearance: 0 });
+
+      const cleanApproved = getDeduplicatedApprovedRecords(records);
+      cleanApproved.forEach(r => {
+        const rawP = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const rawDoc = (r.documentApplied || r['JOB FAIR DOCUMENT APPLIED'] || r['DOCUMENT'] || '').toUpperCase();
+        const p = provinces.find(prov => rawP.includes(prov));
+
+        if (p) {
+          if (rawDoc.includes('PERMIT') || rawDoc.includes('JFP')) {
+            summaryCounts[p].permit++;
+          } else if (rawDoc.includes('CLEARANCE') || rawDoc.includes('JFC')) {
+            summaryCounts[p].clearance++;
+          }
+        }
+      });
+
+      let totalPermits = 0;
+      let totalClearances = 0;
+
+      summaryBody.innerHTML = provinces.map(p => {
+        const pCount = summaryCounts[p].permit;
+        const cCount = summaryCounts[p].clearance;
+        totalPermits += pCount;
+        totalClearances += cCount;
+
+        return `
+          <tr>
+            <td class="fw-bold text-start">${p}</td>
+            <td>${pCount > 0 ? pCount : '-'}</td>
+            <td class="fw-bold">${cCount > 0 ? cCount : '-'}</td>
+          </tr>
+        `;
+      }).join('');
+
+      summaryFoot.innerHTML = `
+        <tr class="table-secondary fw-bold text-dark">
+          <td class="text-start">TOTAL</td>
+          <td>${totalPermits > 0 ? totalPermits : '-'}</td>
+          <td class="fw-bold text-primary">${totalClearances > 0 ? totalClearances : '-'}</td>
+        </tr>
+      `;
+    }
+
+    // TAB 6: RENDER JOB FAIR SCHEDULES & DETAILS (MATCHING PICTURE 1)
+    function renderTab6Schedules() {
+      const fProvince = (document.getElementById('filterTab6Province') ? document.getElementById('filterTab6Province').value : '').toUpperCase();
+      const fMonth = (document.getElementById('filterTab6Month') ? document.getElementById('filterTab6Month').value : '').toUpperCase();
+      const fYear = (document.getElementById('filterTab6Year') ? document.getElementById('filterTab6Year').value : '').toUpperCase() || String(new Date().getFullYear());
+      const fSort = document.getElementById('filterTab6Sort') ? document.getElementById('filterTab6Sort').value : 'LATEST';
+      const fSearch = (document.getElementById('filterTab6Search') ? document.getElementById('filterTab6Search').value : '').toUpperCase();
+
+      let records = (tab3DetailedRecords || []).filter(r => {
+        const province = (r.province || r.fieldOffice || r['FIELD OFFICE'] || r['PROVINCE'] || '').toUpperCase();
+        const month = (r.month || r.reportingPeriod || r['REPORTING PERIOD'] || r['MONTH'] || '').toUpperCase();
+        const year = (r.year || r['YEAR'] || '').toUpperCase();
+        const organizer = (r.sponsor || r['SPONSOR / ORGANIZER'] || r['SPONSOR'] || '').toUpperCase();
+        const venue = (r.jobFairVenue || r['JOB FAIR VENUE'] || r['VENUE'] || '').toUpperCase();
+
+        if (fProvince && !province.includes(fProvince)) return false;
+        if (fMonth && !month.includes(fMonth)) return false;
+        if (fYear && !year.includes(fYear)) return false;
+        if (fSearch && !organizer.includes(fSearch) && !venue.includes(fSearch)) return false;
+        return true;
+      });
+
+      if (fSort === 'LATEST') {
+        records = sortRecordsLatestToEarliest(records);
+      } else {
+        records = [...records].reverse();
+      }
+
+      const tbody = document.getElementById('tab6DataTableBody');
+      if (!tbody) return;
+
+      if (!records || records.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">NO UPCOMING JOB FAIR SCHEDULES FOUND.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = records.map(r => {
+        const dateJf = r.dateOfJobFair || r['DATE OF JOB FAIR'] || r['JOB FAIR DATE'] || 'N/A';
+        const organizer = r.sponsor || r['SPONSOR / ORGANIZER'] || r['SPONSOR'] || 'N/A';
+        const contact = r.contactNumber || r['CONTACT NUMBER'] || 'N/A';
+        const venue = r.jobFairVenue || r['JOB FAIR VENUE'] || r['VENUE'] || 'N/A';
+
+        let formattedDate = dateJf;
+        if (dateJf && dateJf !== 'N/A') {
+          const d = new Date(dateJf);
+          if (!isNaN(d.getTime())) {
+            formattedDate = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+          }
+        }
+
+        const orgEsc = organizer.replace(/'/g, "\\'");
+        const venueEsc = venue.replace(/'/g, "\\'");
+        const contactEsc = contact.replace(/'/g, "\\'");
+        const dateEsc = dateJf.replace(/'/g, "\\'");
+
+        return `
+          <tr>
+            <td class="fw-bold text-primary">${formattedDate}</td>
+            <td class="fw-bold text-start">${organizer}</td>
+            <td>${contact}</td>
+            <td class="text-start">${venue}</td>
+            <td>
+              <button class="btn btn-outline-primary btn-sm rounded-pill px-3 text-nowrap fw-bold" onclick="addToGoogleCalendar('${dateEsc}', '${orgEsc}', '${venueEsc}', '${contactEsc}')">
+                <i class="bi bi-calendar-plus me-1"></i> + ADD TO CALENDAR
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function addToGoogleCalendar(jfDateStr, organizer, venue, contact) {
+      let datesParam = '';
+      if (jfDateStr && jfDateStr !== 'N/A') {
+        const d = new Date(jfDateStr);
+        if (!isNaN(d.getTime())) {
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          datesParam = `${yyyy}${mm}${dd}T080000Z/${yyyy}${mm}${dd}T170000Z`;
+        }
+      }
+
+      const title = encodeURIComponent(`Job Fair - ${organizer}`);
+      const details = encodeURIComponent(`DOLE RO4A Job Fair Schedule\nOrganizer: ${organizer}\nVenue: ${venue}\nContact: ${contact}`);
+      const location = encodeURIComponent(venue);
+
+      const calUrl = `https://calendar.google.acom/calendar/render?action=TEMPLATE&text=${title}&dates=${datesParam}&details=${details}&location=${location}`;
+      window.open(calUrl, '_blank');
+    }
+
+    function resetTab6Filters() {
+      if (document.getElementById('filterTab6Province')) document.getElementById('filterTab6Province').value = '';
+      if (document.getElementById('filterTab6Month')) document.getElementById('filterTab6Month').value = '';
+      if (document.getElementById('filterTab6Year')) document.getElementById('filterTab6Year').value = String(new Date().getFullYear());
+      if (document.getElementById('filterTab6Sort')) document.getElementById('filterTab6Sort').value = 'LATEST';
+      if (document.getElementById('filterTab6Search')) document.getElementById('filterTab6Search').value = '';
+      renderTab6Schedules();
+    }
+
+    function downloadTab6Excel() {
+      const wb = XLSX.utils.table_to_book(document.getElementById("tab6TableElement"), { sheet: "SCHEDULES" });
+      XLSX.writeFile(wb, "Job_Fair_Schedules.xlsx");
+    }
+  </script>
+</body>
+</html>
