@@ -4,7 +4,59 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>JOB FAIR PERMIT/CLEARANCE ISSUANCES ENCODING & RECORDS</title>
+
+  <!-- ANTI-BACK-BUTTON AUTHENTICATION & BFCACHE SESSION GUARD -->
+  <script>
+    (function() {
+      function checkAuthSessionGuard() {
+        var path = window.location.pathname.toLowerCase();
+        var search = window.location.search.toLowerCase();
+        var isLoginPage = path.includes('login') || search.includes('page=login');
+
+        var isLoggedOut = sessionStorage.getItem('isLoggedOut') === 'true' || localStorage.getItem('isLoggedOut') === 'true';
+        var keys = ['username', 'userContext', 'currentUser', 'user', 'loggedUser', 'loggedInUser'];
+        var userFound = false;
+
+        for (var i = 0; i < keys.length; i++) {
+          var k = keys[i];
+          var s = sessionStorage.getItem(k);
+          var l = localStorage.getItem(k);
+          if ((s && s.trim() !== '') || (l && l.trim() !== '')) {
+            userFound = true;
+            break;
+          }
+        }
+
+        if (!isLoginPage) {
+          if (isLoggedOut || !userFound) {
+            window.location.replace('/login');
+            return false;
+          }
+        } else {
+          if (!isLoggedOut && userFound) {
+            window.location.replace('/dashboard');
+            return false;
+          }
+        }
+        return true;
+      }
+
+      checkAuthSessionGuard();
+
+      window.addEventListener('pageshow', function(event) {
+        if (event.persisted || (window.performance && (window.performance.navigation.type === 2 || (window.performance.getEntriesByType && window.performance.getEntriesByType('navigation')[0] && window.performance.getEntriesByType('navigation')[0].type === 'back_forward')))) {
+          if (!checkAuthSessionGuard()) return;
+          window.location.reload();
+        } else {
+          checkAuthSessionGuard();
+        }
+      });
+    })();
+  </script>
   <!-- Bootstrap CSS & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
@@ -590,14 +642,26 @@
                     <input type="date" class="form-control text-muted" id="dateOfEncoding" required onchange="calculateCalculatedFields()" oninput="calculateCalculatedFields()">
                   </div>
 
-                  <!-- PDF / PROOF UPLOAD FIELDS -->
+                  <!-- PDF / PROOF UPLOAD FIELDS & GOOGLE DRIVE FOLDER LINKS -->
                   <div class="col-md-6 px-1 mt-2">
-                    <label class="form-label">UPLOAD PROOF OF DATE APPLICATION RECEIVED <small class="text-muted">(PDF/IMAGE)</small></label>
+                    <label class="form-label d-flex justify-content-between align-items-center mb-1">
+                      <span>UPLOAD PROOF OF DATE APPLICATION RECEIVED <small class="text-muted">(PDF/IMAGE)</small></span>
+                      <a href="https://drive.google.com/drive/folders/1xRHtQ5ALfQ4Una2RkzojVgRsedY9qb5JdsIs00JuPZCt_Mo_yTlbJ6iBR0TCrvoxlCUa8JtB" target="_blank" class="text-primary text-decoration-none fw-bold" style="font-size: 0.75rem;">
+                        <i class="bi bi-folder-symlink me-1"></i>OPEN DRIVE FOLDER
+                      </a>
+                    </label>
                     <input type="file" class="form-control" id="proofReceivedFile" accept=".pdf,image/*">
+                    <small class="text-muted" style="font-size: 0.72rem;">If no file attached, saves link to Proof of Received Google Drive folder.</small>
                   </div>
                   <div class="col-md-6 px-1 mt-2">
-                    <label class="form-label">UPLOAD PROOF OF DATE JFP/JFC RELEASED <small class="text-muted">(PDF/IMAGE)</small></label>
+                    <label class="form-label d-flex justify-content-between align-items-center mb-1">
+                      <span>UPLOAD PROOF OF DATE JFP/JFC RELEASED <small class="text-muted">(PDF/IMAGE)</small></span>
+                      <a href="https://drive.google.com/drive/folders/1-8jKGo9v0p2Xo6yYuidnj_APQojbX33IS3sQ5VFf7n8L33CAZCQxTIcLS3pCoPB-ZkmAfZqQ" target="_blank" class="text-primary text-decoration-none fw-bold" style="font-size: 0.75rem;">
+                        <i class="bi bi-folder-symlink me-1"></i>OPEN DRIVE FOLDER
+                      </a>
+                    </label>
                     <input type="file" class="form-control" id="proofReleasedFile" accept=".pdf,image/*">
+                    <small class="text-muted" style="font-size: 0.72rem;">If no file attached, saves link to Proof of Released Google Drive folder.</small>
                   </div>
                 </div>
               </div>
@@ -1378,6 +1442,10 @@
     // LIVE GOOGLE SHEET CSV EXPORT ENDPOINT (GID 251500066)
     const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1-dN0cj7ozUlH14t7otsucxwDOOOeZ67WoWsQOGZ_aM4/gviz/tq?tqx=out:csv&gid=251500066";
 
+    // GOOGLE DRIVE PROOF ATTACHMENTS STORAGE FOLDERS
+    const PROOF_RECEIVED_DRIVE_URL = "https://drive.google.com/drive/folders/1xRHtQ5ALfQ4Una2RkzojVgRsedY9qb5JdsIs00JuPZCt_Mo_yTlbJ6iBR0TCrvoxlCUa8JtB";
+    const PROOF_RELEASED_DRIVE_URL = "https://drive.google.com/drive/folders/1-8jKGo9v0p2Xo6yYuidnj_APQojbX33IS3sQ5VFf7n8L33CAZCQxTIcLS3pCoPB-ZkmAfZqQ";
+
     // Standard Holidays List (MM-DD)
     const philippineHolidays = [
       "01-01", // New Year's Day
@@ -1636,8 +1704,14 @@
 
     function handleDashboardLogout() {
       sessionStorage.clear();
-      localStorage.clear();
-      window.location.href = '/login';
+      localStorage.removeItem('username');
+      localStorage.removeItem('userContext');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('user');
+      localStorage.removeItem('loggedUser');
+      sessionStorage.setItem('isLoggedOut', 'true');
+      localStorage.setItem('isLoggedOut', 'true');
+      window.location.replace('/login');
     }
 
     function goToPage(pageName) {
@@ -1857,8 +1931,15 @@
       const daysBeforeVal = document.getElementById('daysFiledBeforeJF').value;
       const daysRepVal = document.getElementById('daysReported').value;
 
-      const proofRecUrl = await readFileAsDataURL(document.getElementById('proofReceivedFile'));
-      const proofRelUrl = await readFileAsDataURL(document.getElementById('proofReleasedFile'));
+      let proofRecUrl = await readFileAsDataURL(document.getElementById('proofReceivedFile'));
+      let proofRelUrl = await readFileAsDataURL(document.getElementById('proofReleasedFile'));
+
+      if (!proofRecUrl) {
+        proofRecUrl = PROOF_RECEIVED_DRIVE_URL;
+      }
+      if (!proofRelUrl) {
+        proofRelUrl = PROOF_RELEASED_DRIVE_URL;
+      }
 
       const formData = {
         reportingPeriod: document.getElementById('reportingPeriod').value,
@@ -1880,6 +1961,8 @@
         proofReceivedUrl: proofRecUrl,
         proofReleasedUrl: proofRelUrl,
 
+        "PROOF RECEIVED": proofRecUrl,
+        "PROOF RELEASED": proofRelUrl,
         "DATE OF ENCODING": dateEncVal,
         "TURNAROUND TIME": turnTimeVal,
         "DAYS FILED BEFORE JF": daysBeforeVal,
@@ -2104,8 +2187,8 @@
         record.daysReported = record['DAYS REPORTED'] || record['NO. DAYS REPORTED'] || '';
         record.actionTaken = record['ACTION TAKEN'] || 'APPROVED';
         record.disapprovedReason = record['REASON IF DISAPPROVED'] || 'N/A';
-        record.proofReceivedUrl = record['PROOF RECEIVED'] || record['PROOF_RECEIVED'] || '';
-        record.proofReleasedUrl = record['PROOF RELEASED'] || record['PROOF_RELEASED'] || '';
+        record.proofReceivedUrl = record['PROOF RECEIVED'] || record['PROOF_RECEIVED'] || PROOF_RECEIVED_DRIVE_URL;
+        record.proofReleasedUrl = record['PROOF RELEASED'] || record['PROOF_RELEASED'] || PROOF_RELEASED_DRIVE_URL;
 
         records.push(record);
       }
@@ -2299,11 +2382,11 @@
         const daysRep = r.daysReported || r['DAYS REPORTED'] || r['NO. DAYS REPORTED'] || r['Days Reported'] || r['days_reported'] || '';
         const actionTaken = r.actionTaken || r['ACTION TAKEN'] || '';
         const reasonDisapproved = r.disapprovedReason || r['REASON IF DISAPPROVED'] || 'N/A';
-        const proofRec = r.proofReceivedUrl || r['PROOF RECEIVED'] || '';
-        const proofRel = r.proofReleasedUrl || r['PROOF RELEASED'] || '';
+        const proofRec = r.proofReceivedUrl || r['PROOF RECEIVED'] || r['PROOF_RECEIVED'] || PROOF_RECEIVED_DRIVE_URL;
+        const proofRel = r.proofReleasedUrl || r['PROOF RELEASED'] || r['PROOF_RELEASED'] || PROOF_RELEASED_DRIVE_URL;
 
-        const proofRecCell = proofRec ? `<a href="${proofRec}" target="_blank" class="badge bg-primary text-decoration-none">VIEW PROOF</a>` : '<span class="text-muted">N/A</span>';
-        const proofRelCell = proofRel ? `<a href="${proofRel}" target="_blank" class="badge bg-info text-dark text-decoration-none">VIEW PROOF</a>` : '<span class="text-muted">N/A</span>';
+        const proofRecCell = `<a href="${proofRec}" target="_blank" class="badge bg-primary text-decoration-none"><i class="bi bi-folder-symlink me-1"></i>VIEW PROOF</a>`;
+        const proofRelCell = `<a href="${proofRel}" target="_blank" class="badge bg-info text-dark text-decoration-none"><i class="bi bi-folder-symlink me-1"></i>VIEW PROOF</a>`;
 
         return `
         <tr>
