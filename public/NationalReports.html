@@ -1,1 +1,64 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Fairs - Applicants Pre-Registration & Employers Encoding</title>
+
+<!-- UNIVERSAL GOOGLE APPS SCRIPT COMPATIBILITY POLYFILL FOR GITHUB / NODE.JS EXPRESS SERVER -->
+<script>
+(function() {
+  if (typeof window.google === 'undefined' || !window.google.script || !window.google.script.run) {
+    function createRunner(successCb, failureCb) {
+      return new Proxy({}, {
+        get: function(target, prop) {
+          if (prop === 'withSuccessHandler') {
+            return function(fn) {
+              return createRunner(fn, failureCb);
+            };
+          }
+          if (prop === 'withFailureHandler') {
+            return function(fn) {
+              return createRunner(successCb, fn);
+            };
+          }
+          return function(...args) {
+            fetch('/api/' + prop, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ args: args })
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.error) {
+                if (typeof failureCb === 'function') failureCb(new Error(data.error));
+                else console.error('API Error:', data.error);
+              } else {
+                if (typeof successCb === 'function') successCb(data ? data.result : null);
+              }
+            })
+            .catch(err => {
+              if (typeof failureCb === 'function') failureCb(err);
+              else console.error('Fetch Error:', err);
+            });
+          };
+        }
+      });
+    }
+
+    window.google = window.google || {};
+    window.google.script = window.google.script || {};
+    window.google.script.run = createRunner(null, null);
+  }
+})();
+</script>
+
+<script>
+  window.location.replace('/index.html');
+</script>
+</head>
+<body>
+</body>
+</html>
